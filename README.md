@@ -1,6 +1,6 @@
 # Anote - Model Leaderboard
 
-Anote's Model Leaderboard provides a way to benchmark and compare model performance. We have a public API to:
+Anote's Model Leaderboard provides a way to benchmark and compare model performance. We have an API to:
 1. **Adding new datasets** to the leaderboard across **all task types**.
 2. **Adding new model submissions** to existing datasets.
 
