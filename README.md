@@ -1,6 +1,6 @@
 # Anote - Model Leaderboard
 
-Anote's Model Leaderboard provides a way to benchmark and compare model performance. We have a public API to:
+Anote's Model Leaderboard provides a way to benchmark and compare model performance. We have an API to:
 1. **Adding new datasets** to the leaderboard across **all task types**.
 2. **Adding new model submissions** to existing datasets.
 
@@ -120,13 +120,9 @@ if __name__ == '__main__':
 
 ---
 
-### 4. Integration with Frontend
+### Integration with Frontend
 The API will integrate with:
 - **Leaderboard Page** ([https://leaderboard.anote.ai/](https://leaderboard.anote.ai/))
-- **Submit to Leaderboard Page** ([https://anote.ai/submittoleaderboard](https://leaderboard.anote.ai/submit))
+- **Submit to Leaderboard Page** ([https://leaderboard.anote.ai/submit](https://leaderboard.anote.ai/submit))
 
-This will allow direct testing of Flask API calls from the UI to verify real-time table updates.
-
-## Contact
-**Project Lead**: [Natan Vidra](malito:nvidra@anote.ai)
-**Leaderboard**: [https://leaderboard.anote.ai/leaderboard](https://leaderboard.anote.ai/)
+This allows direct testing of Flask API calls from the UI to verify real-time table updates.
