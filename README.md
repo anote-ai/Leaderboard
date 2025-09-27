@@ -128,5 +128,5 @@ The API will integrate with:
 This allows direct testing of Flask API calls from the UI to verify real-time table updates.
 
 ## Contact
-**Project Lead**: [Natan Vidra](malito:nvidra@anote.ai)
+**Project Lead**: [Natan Vidra](nvidra@anote.ai)
 **Leaderboard**: [https://leaderboard.anote.ai/leaderboard](https://leaderboard.anote.ai/)
