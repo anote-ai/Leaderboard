@@ -417,11 +417,16 @@ const SubmitToLeaderboard = ({
   // };
 
   return (
-    <div className="w-screen bg-gray-900 text-white min-h-screen flex items-center justify-center">
-      <div className="w-full bg-gray-900 max-w-4xl mx-auto border border-blue-300 mt-8 px-10 py-5 rounded-xl text-white space-y-5">
+    <div className="w-full bg-gradient-to-b from-gray-950 via-gray-900 to-gray-900 text-white min-h-screen flex justify-center px-4">
+      <div className="w-full max-w-4xl mx-auto mt-12 mb-20 rounded-2xl bg-gray-900/70 border border-gray-800 shadow-xl p-6 md:p-10 space-y-6">
         {/* Header + Close */}
         <div className="flex flex-row items-center justify-between">
-          <div className="font-bold text-xl">Model Leaderboard Submission</div>
+          <div>
+            <div className="font-extrabold text-2xl md:text-3xl bg-clip-text text-transparent bg-gradient-to-r from-yellow-400 via-turquoise-400 to-blue-400">
+              Submit to the Leaderboard
+            </div>
+            <p className="text-sm text-gray-300/90 mt-1">Share your model’s results and we’ll evaluate and publish the ranking.</p>
+          </div>
           {/* <div
             className="hover:cursor-pointer"
             onClick={() => {
@@ -595,10 +600,11 @@ const SubmitToLeaderboard = ({
                 {flowType === FlowType.PREDICT && (
           <button
             href="#"
-            className="underline text-sm text-yellow-500"
+            className="inline-flex items-center gap-2 text-xs md:text-sm px-3 py-1.5 rounded-full border border-blue-500/60 text-blue-300 hover:bg-blue-500/10 transition-colors"
             onClick={handleOpenModal}
           >
             Download Benchmark Dataset
+            <span aria-hidden>↓</span>
           </button>
         )}
 
@@ -606,7 +612,7 @@ const SubmitToLeaderboard = ({
       <div className="bg-gray-800 p-8 rounded-lg shadow-lg w-full max-w-2xl"> */}
         {/* <h2 className="text-3xl font-bold mb-6 text-center">Submit to Model Leaderboard</h2> */}
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm mb-1">Benchmark Dataset Name</label>
               <input
@@ -614,7 +620,7 @@ const SubmitToLeaderboard = ({
                 name="benchmarkDataset"
                 value={formData.benchmarkDataset}
                 onChange={handleChange}
-                className="w-full px-4 py-2 rounded-md bg-gray-700 focus:ring-2 focus:ring-blue-400"
+                className="w-full px-4 py-2 rounded-md bg-gray-800/80 placeholder-gray-400 focus:ring-2 focus:ring-blue-400 border border-gray-700"
                 required
               />
             </div>
@@ -625,7 +631,7 @@ const SubmitToLeaderboard = ({
                 name="submissionName"
                 value={formData.submissionName}
                 onChange={handleChange}
-                className="w-full px-4 py-2 rounded-md bg-gray-700 focus:ring-2 focus:ring-blue-400"
+                className="w-full px-4 py-2 rounded-md bg-gray-800/80 placeholder-gray-400 focus:ring-2 focus:ring-blue-400 border border-gray-700"
                 required
               />
             </div>
@@ -636,7 +642,7 @@ const SubmitToLeaderboard = ({
                 name="firstName"
                 value={formData.firstName}
                 onChange={handleChange}
-                className="w-full px-4 py-2 rounded-md bg-gray-700 focus:ring-2 focus:ring-blue-400"
+                className="w-full px-4 py-2 rounded-md bg-gray-800/80 placeholder-gray-400 focus:ring-2 focus:ring-blue-400 border border-gray-700"
                 required
               />
             </div>
@@ -647,7 +653,7 @@ const SubmitToLeaderboard = ({
                 name="lastName"
                 value={formData.lastName}
                 onChange={handleChange}
-                className="w-full px-4 py-2 rounded-md bg-gray-700 focus:ring-2 focus:ring-blue-400"
+                className="w-full px-4 py-2 rounded-md bg-gray-800/80 placeholder-gray-400 focus:ring-2 focus:ring-blue-400 border border-gray-700"
                 required
               />
             </div>
@@ -658,7 +664,7 @@ const SubmitToLeaderboard = ({
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
-                className="w-full px-4 py-2 rounded-md bg-gray-700 focus:ring-2 focus:ring-blue-400"
+                className="w-full px-4 py-2 rounded-md bg-gray-800/80 placeholder-gray-400 focus:ring-2 focus:ring-blue-400 border border-gray-700"
                 required
               />
             </div>
@@ -669,7 +675,7 @@ const SubmitToLeaderboard = ({
                 name="companyName"
                 value={formData.companyName}
                 onChange={handleChange}
-                className="w-full px-4 py-2 rounded-md bg-gray-700 focus:ring-2 focus:ring-blue-400"
+                className="w-full px-4 py-2 rounded-md bg-gray-800/80 placeholder-gray-400 focus:ring-2 focus:ring-blue-400 border border-gray-700"
                 required
               />
             </div>
@@ -680,7 +686,7 @@ const SubmitToLeaderboard = ({
                 name="jobTitle"
                 value={formData.jobTitle}
                 onChange={handleChange}
-                className="w-full px-4 py-2 rounded-md bg-gray-700 focus:ring-2 focus:ring-blue-400"
+                className="w-full px-4 py-2 rounded-md bg-gray-800/80 placeholder-gray-400 focus:ring-2 focus:ring-blue-400 border border-gray-700"
                 required
               />
             </div>
@@ -691,18 +697,18 @@ const SubmitToLeaderboard = ({
                 name="linkedIn"
                 value={formData.linkedIn}
                 onChange={handleChange}
-                className="w-full px-4 py-2 rounded-md bg-gray-700 focus:ring-2 focus:ring-blue-400"
+                className="w-full px-4 py-2 rounded-md bg-gray-800/80 placeholder-gray-400 focus:ring-2 focus:ring-blue-400 border border-gray-700"
               />
             </div>
           </div>
           <button
             type="submit"
-            className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md focus:ring-4 focus:ring-blue-300"
+            className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2.5 px-4 rounded-lg focus:ring-4 focus:ring-blue-400/40"
           >
             Submit
           </button>
         </form>
-        {submissionStatus && <p className="mt-4 text-center text-sm">{submissionStatus}</p>}
+        {submissionStatus && <p className="mt-4 text-center text-sm text-gray-300">{submissionStatus}</p>}
       {/* </div>
     </div> */}
         {/* <div>

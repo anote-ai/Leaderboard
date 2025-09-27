@@ -184,7 +184,7 @@ const Leaderboard = () => {
       ],
     },
     {
-      name: "Financial Phrasebank - Classification Accuracy",
+      name: "Financial Phrasebank - Classify Accuracy",
       url: "https://huggingface.co/datasets/takala/financial_phrasebank",
       models: [
         {
@@ -970,8 +970,15 @@ const Leaderboard = () => {
   ];
   const navigate = useNavigate();
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 pb-20 mx-3">
-      <h1 className="text-4xl font-bold text-white mb-10 mt-8 pt-10">Model Leaderboard</h1>
+    <div className="flex flex-col items-center justify-start min-h-screen bg-gray-900 pb-24 mx-3">
+      <header className="w-full max-w-7xl mt-10 pt-10 text-center">
+        <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-white">
+          Model Leaderboard
+        </h1>
+        <p className="mt-3 text-gray-300/90 text-sm md:text-base">
+          Compare models across datasets. Clean, consistent, and up to date.
+        </p>
+      </header>
       {/* <button
         className="btn-black px-6 py-2 mb-8 rounded-md text-lg font-semibold transition-colors"
         // onClick={() => {navigate(submittoleaderboardPath);}}
@@ -982,70 +989,78 @@ const Leaderboard = () => {
         Submit Model to Leaderboard
       </button> */}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 mt-8 w-full max-w-7xl">
         {datasets.map((dataset, index) => (
           <div
             key={index}
-            className="w-full max-w-3xl p-4 bg-gray-950 rounded-lg shadow-lg"
+            className="w-full p-5 md:p-6 bg-gray-900/70 rounded-xl shadow-lg border border-gray-800 hover:border-gray-700 transition-colors"
           >
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-white">{dataset.name}</h2>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+              <h2 className="text-lg md:text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r  from-turquoise-400 to-blue-400">
+                {dataset.name}
+              </h2>
               <a
                 href={dataset.url}
-                className="text-blue-400 hover:text-blue-500 text-sm underline"
+                className="inline-flex items-center gap-2 text-xs md:text-sm px-3 py-1.5 rounded-full border border-gray-700 text-[#defe47] hover:bg-blue-500/10 transition-colors"
                 target="_blank"
                 rel="noopener noreferrer"
+                aria-label={`Open dataset ${dataset.name}`}
               >
                 View Dataset
+                <span aria-hidden>↗</span>
               </a>
             </div>
-            <div className="grid grid-cols-4 text-white font-bold text-center bg-gray-900 p-4 rounded-t-lg">
-              <div>Rank</div>
-              <div>Model</div>
-              <div>Score</div>
-              <div>Last Updated</div>
-            </div>
-            <div>
-              {dataset.models
-                // .sort((a, b) => b.score - a.score) Sort from highest to lowest score
-                .map((model, modelIndex) => (
-                  <div
-                    key={modelIndex}
-                    className={`grid grid-cols-4 text-center p-4 ${
-                      modelIndex % 2 === 0
-                        ? "bg-gray-700 text-white"
-                        : "bg-gray-800 text-white"
-                    }`}
-                  >
-                    <div>{model.rank}</div>
-                    <div>{model.model}</div>
-                    <div>{model.score}</div>
-                    <div>{model.updated}</div>
-                  </div>
-                ))}
+
+            <div className="overflow-hidden rounded-lg border border-gray-800">
+              <div className="grid grid-cols-4 text-white font-semibold text-center bg-gray-900/80 px-4 py-3">
+                <div>Rank</div>
+                <div>Model</div>
+                <div>Score</div>
+                <div>Last Updated</div>
+              </div>
+              <div className="divide-y divide-gray-800">
+                {dataset.models
+                  .map((model, modelIndex) => {
+                    const isTop = model.rank === 1;
+                    const rowBase = "grid grid-cols-4 text-center px-4 py-3 text-white hover:bg-gray-700/50 transition-colors";
+                    const topBg = isTop ? " bg-gradient-to-r from-turquoise-400/15 to-transparent" : "";
+                    const score = typeof model.score === 'number' ? model.score.toFixed(model.score < 1 ? 3 : 2) : model.score;
+                    return (
+                      <div key={modelIndex} className={rowBase + topBg}>
+                        <div className="font-semibold">
+                          {isTop ? <span title="Top model" className="mr-1">🥇</span> : null}
+                          {model.rank}
+                        </div>
+                        <div className="truncate" title={model.model}>{model.model}</div>
+                        <div className="tabular-nums">{score}{model.ci ? <span className="ml-2 text-xs text-gray-300">({model.ci})</span> : null}</div>
+                        <div className="text-gray-300">{model.updated}</div>
+                      </div>
+                    );
+                  })}
+              </div>
             </div>
           </div>
         ))}
       </div>
 
       {/* FAQs Section */}
-      <div className="w-full md:w-3/4 mx-auto mt-20">
-        <div className="bg-gray-900 rounded-xl p-10">
-          <div className="text-yellow-500 text-3xl font-semibold mb-8">FAQs</div>
+      <div className="w-full max-w-5xl mx-auto mt-20 px-2">
+        <div className="bg-gray-900/70 rounded-xl p-6 md:p-10 border border-gray-800">
+          <div className="text-yellow-400 text-2xl md:text-3xl font-semibold mb-6 md:mb-8">FAQs</div>
           {faqs.map((faq, index) => (
             <div
-              className="bg-gray-800 px-5 py-4 my-4 rounded-xl cursor-pointer"
+              className="bg-gray-800/80 px-5 py-4 my-4 rounded-xl cursor-pointer border border-gray-700 hover:border-gray-600 transition-colors"
               onClick={() => handleClick(index)}
               key={index}
             >
               <div className="faq-header">
-                <h2 className="text-xl font-medium bg-clip-text text-transparent bg-gradient-to-r from-turquoise-500 to-blue-400">
+                <h2 className="text-lg md:text-xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-turquoise-400 to-blue-400">
                   {faq.question}
                 </h2>
               </div>
               {openIndex === index && (
-                <div className="faq-answer mt-2 text-white">
-                  <p>{faq.answer}</p>
+                <div className="faq-answer mt-2 text-gray-200">
+                  <p className="leading-relaxed">{faq.answer}</p>
                 </div>
               )}
             </div>
