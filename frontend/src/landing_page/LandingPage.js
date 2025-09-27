@@ -14,10 +14,11 @@ import { useDispatch } from "react-redux";
 import { useLocation } from "react-router-dom";
 import { robotHeader } from "../util/RobotHeader";
 import Leaderboard from "./landing_page_components/Leaderboard";
-import SubmitToLeaderboard  from "./landing_page_components/SubmitToLeaderboard"
+import SubmitToLeaderboard  from "./landing_page_components/SubmitToLeaderboard";
+import Evaluations  from "./landing_page_components/Evaluations"
 import AdminLeaderboardManager from "./landing_page_components/AdminLeaderboardManager";
 import DatasetDetails from "./landing_page_components/DatasetDetails";
-import { submittoleaderboardPath, adminLeaderboardPath } from "../constants/RouteConstants";
+import { submittoleaderboardPath, adminLeaderboardPath, evaluationsPath } from "../constants/RouteConstants";
 
 function LandingPage() {
   const location = useLocation();
@@ -63,6 +64,7 @@ function LandingPage() {
         <Routes>
           <Route index element={<Leaderboard />} />,
           <Route path={submittoleaderboardPath} index element={<SubmitToLeaderboard />} />,
+          <Route path={evaluationsPath} index element={<Evaluations />} />,
           <Route path="/dataset/:name" element={<DatasetDetails />} />,
           <Route path={adminLeaderboardPath} index element={<AdminLeaderboardManager />} />,
           <Route path="*" element={<Navigate replace to="/" />} />
