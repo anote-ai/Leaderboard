@@ -16,6 +16,7 @@ import { robotHeader } from "../util/RobotHeader";
 import Leaderboard from "./landing_page_components/Leaderboard";
 import SubmitToLeaderboard  from "./landing_page_components/SubmitToLeaderboard"
 import AdminLeaderboardManager from "./landing_page_components/AdminLeaderboardManager";
+import DatasetDetails from "./landing_page_components/DatasetDetails";
 import { submittoleaderboardPath, adminLeaderboardPath } from "../constants/RouteConstants";
 
 function LandingPage() {
@@ -62,6 +63,7 @@ function LandingPage() {
         <Routes>
           <Route index element={<Leaderboard />} />,
           <Route path={submittoleaderboardPath} index element={<SubmitToLeaderboard />} />,
+          <Route path="/dataset/:name" element={<DatasetDetails />} />,
           <Route path={adminLeaderboardPath} index element={<AdminLeaderboardManager />} />,
           <Route path="*" element={<Navigate replace to="/" />} />
         </Routes>

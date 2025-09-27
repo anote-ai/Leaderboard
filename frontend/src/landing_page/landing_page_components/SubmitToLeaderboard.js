@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import Papa from "papaparse";
 import { Modal } from "flowbite-react";
 import { FaDatabase } from "react-icons/fa";
@@ -42,6 +43,7 @@ const SubmitToLeaderboard = ({
   selectedDatasetId,
   setSelectedDatasetId,
 }) => {
+  const navigate = useNavigate();
   // ---------- Leaderboard submission state ----------
   const [datasetKey, setDatasetKey] = useState("flores_spanish_translation");
   const [count, setCount] = useState(3);
@@ -53,12 +55,33 @@ const SubmitToLeaderboard = ({
   const [modelNameInput, setModelNameInput] = useState("");
   const [submitResult, setSubmitResult] = useState(null);
   const [errorMsg, setErrorMsg] = useState("");
+  const [proposeOpen, setProposeOpen] = useState(false);
+  const [proposeSubmitting, setProposeSubmitting] = useState(false);
+  const [proposeForm, setProposeForm] = useState({ name: '', task_type: 'translation', evaluation_metric: 'bleu', url: '', description: '' });
 
-  const datasetOptions = [
-    { value: "flores_spanish_translation", label: "Spanish (BLEU)" },
-    { value: "flores_spanish_translation_bertscore", label: "Spanish (BERTScore)" },
-    // Other languages can be added as backend supports them
-  ];
+  const [datasetOptions, setDatasetOptions] = useState([
+    { value: "flores_spanish_translation", label: "Spanish (BLEU)", task_type: 'translation', evaluation_metric: 'bleu', size: undefined },
+    { value: "flores_spanish_translation_bertscore", label: "Spanish (BERTScore)", task_type: 'translation', evaluation_metric: 'bertscore', size: undefined },
+  ]);
+  const [selectedDatasetMeta, setSelectedDatasetMeta] = useState({ task_type: 'translation', evaluation_metric: 'bleu', size: undefined });
+
+  // Load available datasets from backend
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/public/datasets`);
+        const data = await res.json();
+        if (res.ok && data.success && Array.isArray(data.datasets)) {
+          const opts = data.datasets.map(d => ({ value: d.name, label: `${d.name} (${d.task_type}/${d.evaluation_metric}${d.size?`, ${d.size} items`:''})`, task_type: d.task_type, evaluation_metric: d.evaluation_metric, size: d.size }));
+          if (opts.length) {
+            setDatasetOptions(opts);
+            setDatasetKey(opts[0].value);
+            setSelectedDatasetMeta({ task_type: opts[0].task_type, evaluation_metric: opts[0].evaluation_metric, size: opts[0].size });
+          }
+        }
+      } catch {}
+    })();
+  }, []);
 
   const fetchSentences = async () => {
     setErrorMsg("");
@@ -93,7 +116,7 @@ const SubmitToLeaderboard = ({
         throw new Error("Please enter a model name");
       }
       if (translations.length === 0 || translations.some((t) => !t.trim())) {
-        throw new Error("Please provide translations for all sentences");
+        throw new Error("Please provide outputs for all items");
       }
       const payload = {
         benchmarkDatasetName: datasetKey,
@@ -116,6 +139,67 @@ const SubmitToLeaderboard = ({
     } finally {
       setLoadingSubmit(false);
     }
+  };
+
+  const proposeDataset = async (e) => {
+    e.preventDefault();
+    setErrorMsg("");
+    setProposeSubmitting(true);
+    try {
+      const payload = {
+        name: proposeForm.name.trim(),
+        task_type: proposeForm.task_type,
+        evaluation_metric: proposeForm.evaluation_metric,
+        reference_data: { url: proposeForm.url || undefined, description: proposeForm.description || undefined }
+      };
+      const res = await fetch(`${API_BASE}/public/add_dataset`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!res.ok || data.success !== true) throw new Error(data.error || 'Failed to add dataset');
+      // refresh list
+      const lres = await fetch(`${API_BASE}/public/datasets`);
+      const ldata = await lres.json();
+      if (lres.ok && ldata.success && Array.isArray(ldata.datasets)) {
+        const opts = ldata.datasets.map(d => ({ value: d.name, label: `${d.name} (${d.evaluation_metric})` }));
+            setDatasetOptions(opts);
+            setDatasetKey(payload.name);
+            setSelectedDatasetMeta({ task_type: payload.task_type, evaluation_metric: payload.evaluation_metric, size: undefined });
+            setProposeOpen(false);
+        setProposeForm({ name: '', task_type: 'translation', evaluation_metric: 'bleu', url: '', description: '' });
+      }
+    } catch (e) {
+      setErrorMsg(e.message || 'Error adding dataset');
+    } finally {
+      setProposeSubmitting(false);
+    }
+  };
+
+  // CSV upload flow (optional): supports translation or classification
+  const [useCsv, setUseCsv] = useState(false);
+  const parseSubmissionCsv = async (file) => {
+    return new Promise((resolve, reject) => {
+      Papa.parse(file, {
+        header: true,
+        complete: (results) => {
+          try {
+            const rows = (results.data || []).filter(Boolean);
+            const modelResults = [];
+            const ids = [];
+            rows.forEach((r, idx) => {
+              const text = r.translation || r.Translations || r.output || r.prediction || r.Prediction || '';
+              const sid = r.sentence_id != null ? Number(r.sentence_id) : (r.id != null ? Number(r.id) : (r.index != null ? Number(r.index) : idx));
+              if (String(text).trim().length) {
+                modelResults.push(String(text));
+                ids.push(sid);
+              }
+            });
+            resolve({ modelResults, sentenceIds: ids });
+          } catch (e) { reject(e); }
+        },
+        error: reject,
+      })
+    });
   };
 
   // ---------- Existing local states ----------
@@ -620,21 +704,34 @@ const SubmitToLeaderboard = ({
           Download Example CSV
         </a> */}
         {/* Submit to Leaderboard (API-connected UI) */}
-        <div className="w-full max-w-3xl mx-auto bg-gray-800/70 border border-gray-700 rounded-xl p-4 md:p-6 mb-8">
+        <div className="w-full max-w-3xl mx-auto bg-gray-800/70 border border-gray-700 rounded-xl p-4 md:p-6 mb-8 relative">
+          <button
+            aria-label="Close"
+            className="absolute right-3 top-3 px-2 py-1 rounded-md border border-gray-700 text-gray-300 hover:bg-gray-700/40"
+            onClick={() => navigate('/')}
+          >
+            ×
+          </button>
           <div className="text-lg font-semibold text-white mb-3">Submit to Model Leaderboard</div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-2">
             <div className="md:col-span-2">
               <label className="block text-sm text-gray-300 mb-1">Benchmark</label>
               <select
                 className="w-full px-3 py-2 rounded-md bg-gray-900 border border-gray-700 text-white"
                 value={datasetKey}
-                onChange={(e) => setDatasetKey(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setDatasetKey(val);
+                  const found = datasetOptions.find(o => o.value === val);
+                  if (found) setSelectedDatasetMeta({ task_type: found.task_type, evaluation_metric: found.evaluation_metric, size: found.size });
+                }}
               >
                 {datasetOptions.map((opt) => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
                 ))}
               </select>
+              <div className="text-xs text-gray-400 mt-1">Task: {selectedDatasetMeta.task_type} | Metric: {selectedDatasetMeta.evaluation_metric} {selectedDatasetMeta.size ? `| Size: ${selectedDatasetMeta.size}` : ''}</div>
             </div>
             <div>
               <label className="block text-sm text-gray-300 mb-1"># Sentences</label>
@@ -648,6 +745,25 @@ const SubmitToLeaderboard = ({
               />
             </div>
           </div>
+          <div className="mb-4">
+            <button type="button" onClick={()=>setProposeOpen(v=>!v)} className="text-xs text-yellow-400 underline">
+              {proposeOpen ? 'Hide dataset proposal' : "Can't find your dataset? Propose one"}
+            </button>
+            {proposeOpen && (
+              <form onSubmit={proposeDataset} className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-3">
+                <input placeholder="Dataset name" value={proposeForm.name} onChange={e=>setProposeForm(f=>({...f,name:e.target.value}))} className="px-3 py-2 rounded-md bg-gray-900 border border-gray-700 text-white" required />
+                <input placeholder="Task type (e.g., translation)" value={proposeForm.task_type} onChange={e=>setProposeForm(f=>({...f,task_type:e.target.value}))} className="px-3 py-2 rounded-md bg-gray-900 border border-gray-700 text-white" required />
+                <input placeholder="Evaluation metric (e.g., bleu)" value={proposeForm.evaluation_metric} onChange={e=>setProposeForm(f=>({...f,evaluation_metric:e.target.value}))} className="px-3 py-2 rounded-md bg-gray-900 border border-gray-700 text-white" required />
+                <input placeholder="URL (optional)" value={proposeForm.url} onChange={e=>setProposeForm(f=>({...f,url:e.target.value}))} className="px-3 py-2 rounded-md bg-gray-900 border border-gray-700 text-white" />
+                <input placeholder="Description (optional)" value={proposeForm.description} onChange={e=>setProposeForm(f=>({...f,description:e.target.value}))} className="px-3 py-2 rounded-md bg-gray-900 border border-gray-700 text-white" />
+                <div className="md:col-span-2">
+                  <button type="submit" disabled={proposeSubmitting} className="px-3 py-2 rounded-md border border-yellow-500/60 text-yellow-300 hover:bg-yellow-500/10 disabled:opacity-50">
+                    {proposeSubmitting ? 'Submitting...' : 'Propose Dataset'}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
 
           <div className="flex items-center gap-3 mb-4">
             <button
@@ -658,6 +774,26 @@ const SubmitToLeaderboard = ({
             >
               {loadingFetch ? "Fetching…" : "Get Test Sentences"}
             </button>
+            <button
+              type="button"
+              onClick={() => {
+                // Build CSV template according to task type
+                const tt = (selectedDatasetMeta.task_type || 'translation').toLowerCase();
+                let headers = 'sentence_id,';
+                if (tt === 'text_classification') headers += 'prediction\n0,\n1,\n2,\n';
+                else if (tt === 'ner') headers += 'entities\n0,ORG;PERSON\n1,ORG\n2,\n';
+                else headers += 'translation\n0,\n1,\n2,\n'; // default translation/qa
+                const blob = new Blob([headers], { type: 'text/csv' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `${datasetKey || 'dataset'}_${tt}_template.csv`;
+                link.click();
+                URL.revokeObjectURL(link.href);
+              }}
+              className="px-4 py-2 rounded-md border border-yellow-500/60 text-yellow-300 hover:bg-yellow-500/10"
+            >
+              Download CSV Template
+            </button>
             <div className="text-sm text-gray-300">
               Use these sentences to generate your translations below.
             </div>
@@ -667,7 +803,39 @@ const SubmitToLeaderboard = ({
             <div className="text-sm text-red-400 mb-3">{errorMsg}</div>
           ) : null}
 
-          {sourceSentences.length > 0 && (
+          {/* Toggle manual vs CSV */}
+          <div className="flex items-center gap-3 mb-3">
+            <label className="text-sm text-gray-300">Use CSV upload</label>
+            <input type="checkbox" checked={useCsv} onChange={(e)=>setUseCsv(e.target.checked)} />
+          </div>
+
+          {/* CSV mode */}
+          {useCsv && (
+            <div className="space-y-3 mb-4">
+              <input
+                type="file"
+                accept=".csv"
+                className="w-full text-sm text-gray-300"
+                onChange={async (e) => {
+                  const f = e.target.files?.[0];
+                  if (!f) return;
+                  try {
+                    const { modelResults, sentenceIds } = await parseSubmissionCsv(f);
+                    setTranslations(modelResults);
+                    setSentenceIds(sentenceIds);
+                    setSourceSentences([]);
+                    setErrorMsg("");
+                  } catch (err) {
+                    setErrorMsg('Failed to parse CSV');
+                  }
+                }}
+              />
+              <div className="text-xs text-gray-400">CSV headers supported: translation, sentence_id (optional)</div>
+            </div>
+          )}
+
+          {/* Manual mode */}
+          {!useCsv && sourceSentences.length > 0 && (
             <div className="space-y-3 mb-4">
               {sourceSentences.map((src, idx) => (
                 <div key={idx} className="bg-gray-900 border border-gray-700 rounded-lg p-3">

@@ -5,6 +5,8 @@ import { useNavigate } from "react-router-dom";
 const Leaderboard = () => {
   const [openIndex, setOpenIndex] = useState(null);
   const [liveDatasets, setLiveDatasets] = useState([]);
+  const [curatedDatasets, setCuratedDatasets] = useState([]);
+  const [viewMode, setViewMode] = useState('live'); // 'live' | 'curated'
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const API_BASE = process.env.REACT_APP_API_BASE || process.env.REACT_APP_API_ENDPOINT || "http://localhost:5001";
@@ -40,6 +42,21 @@ const Leaderboard = () => {
       } finally {
         if (!ignore) setLoading(false);
       }
+    };
+    run();
+    return () => { ignore = true; };
+  }, [API_BASE]);
+
+  useEffect(() => {
+    let ignore = false;
+    const run = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/leaderboard/list`);
+        const data = await res.json();
+        if (!res.ok || data.status !== 'success') return;
+        const groups = (data.datasets || []).map(d => ({ name: d.name, url: d.url, evaluation_metric: '', models: (d.models||[]).map(m => ({ rank: m.rank, model: m.model, score: m.score, updated: m.updated })) }));
+        if (!ignore) setCuratedDatasets(groups);
+      } catch {}
     };
     run();
     return () => { ignore = true; };
@@ -1032,10 +1049,14 @@ const Leaderboard = () => {
         >
           Manage Leaderboard
         </button>
+        <div className="ml-4 inline-flex border border-gray-700 rounded-md overflow-hidden">
+          <button onClick={()=>setViewMode('live')} className={`px-3 py-1 text-sm ${viewMode==='live'?'bg-gray-700 text-white':'text-gray-300'}`}>Live</button>
+          <button onClick={()=>setViewMode('curated')} className={`px-3 py-1 text-sm ${viewMode==='curated'?'bg-gray-700 text-white':'text-gray-300'}`}>Curated</button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 mt-8 w-full max-w-7xl">
-        {(liveDatasets.length ? liveDatasets : datasets).map((dataset, index) => (
+        {(viewMode==='curated' ? (curatedDatasets.length ? curatedDatasets : datasets) : (liveDatasets.length ? liveDatasets : datasets)).map((dataset, index) => (
           <div
             key={index}
             className="w-full p-5 md:p-6 bg-gray-900/70 rounded-xl shadow-lg border border-gray-800 hover:border-gray-700 transition-colors"
@@ -1060,6 +1081,12 @@ const Leaderboard = () => {
                   Metric: {dataset.evaluation_metric || '—'}
                 </span>
               )}
+              <button
+                className="inline-flex items-center gap-2 text-xs md:text-sm px-3 py-1.5 rounded-full border border-blue-500/60 text-blue-300 hover:bg-blue-500/10 transition-colors"
+                onClick={() => navigate(`/dataset/${encodeURIComponent(dataset.name)}`)}
+              >
+                Details
+              </button>
             </div>
 
             <div className="overflow-hidden rounded-lg border border-gray-800">

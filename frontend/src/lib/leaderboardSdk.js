@@ -19,6 +19,8 @@ export const LeaderboardSDK = {
   addDataset: (payload) => http('POST', '/api/leaderboard/add_dataset', payload),
   addModel: (payload) => http('POST', '/api/leaderboard/add_model', payload),
   listDatasets: () => http('GET', '/api/leaderboard/list'),
+  listPublicDatasets: () => http('GET', '/public/datasets'),
+  addDatasetPublic: (payload) => http('POST', '/public/add_dataset', payload),
   getLeaderboard: () => http('GET', '/public/get_leaderboard'),
   getSourceSentences: (params = {}) => {
     const url = new URL(`${API_BASE}/public/get_source_sentences`);
@@ -37,4 +39,3 @@ export const LeaderboardSDK = {
 };
 
 export default LeaderboardSDK;
-
