@@ -123,9 +123,9 @@ if __name__ == '__main__':
 ### 4. Integration with Frontend
 The API will integrate with:
 - **Leaderboard Page** ([https://leaderboard.anote.ai/](https://leaderboard.anote.ai/))
-- **Submit to Leaderboard Page** ([https://anote.ai/submittoleaderboard](https://leaderboard.anote.ai/submit))
+- **Submit to Leaderboard Page** ([https://leaderboard.anote.ai/submit](https://leaderboard.anote.ai/submit))
 
-This will allow direct testing of Flask API calls from the UI to verify real-time table updates.
+This allows direct testing of Flask API calls from the UI to verify real-time table updates.
 
 ## Contact
 **Project Lead**: [Natan Vidra](malito:nvidra@anote.ai)
