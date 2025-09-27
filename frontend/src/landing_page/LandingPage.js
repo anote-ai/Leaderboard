@@ -15,7 +15,8 @@ import { useLocation } from "react-router-dom";
 import { robotHeader } from "../util/RobotHeader";
 import Leaderboard from "./landing_page_components/Leaderboard";
 import SubmitToLeaderboard  from "./landing_page_components/SubmitToLeaderboard"
-import { submittoleaderboardPath } from "../constants/RouteConstants";
+import AdminLeaderboardManager from "./landing_page_components/AdminLeaderboardManager";
+import { submittoleaderboardPath, adminLeaderboardPath } from "../constants/RouteConstants";
 
 function LandingPage() {
   const location = useLocation();
@@ -61,6 +62,7 @@ function LandingPage() {
         <Routes>
           <Route index element={<Leaderboard />} />,
           <Route path={submittoleaderboardPath} index element={<SubmitToLeaderboard />} />,
+          <Route path={adminLeaderboardPath} index element={<AdminLeaderboardManager />} />,
           <Route path="*" element={<Navigate replace to="/" />} />
         </Routes>
       </div>

@@ -1019,12 +1019,20 @@ const Leaderboard = () => {
           Compare models across a variety of datasets
         </p>
       </header>
-      {/* <button
-        className="px-6 py-2 mb-8 rounded-md text-lg font-semibold transition-colors border border-blue-500/60 text-blue-300 hover:bg-blue-500/10"
-        onClick={() => {navigate(submittoleaderboardPath);}}
-      >
-        Submit Model to Leaderboard
-      </button> */}
+      <div className="flex gap-3 mt-4">
+        <button
+          className="px-6 py-2 rounded-md text-lg font-semibold transition-colors border border-blue-500/60 text-blue-300 hover:bg-blue-500/10"
+          onClick={() => navigate(submittoleaderboardPath)}
+        >
+          Submit Model to Leaderboard
+        </button>
+        <button
+          className="px-6 py-2 rounded-md text-lg font-semibold transition-colors border border-gray-600 text-gray-300 hover:bg-gray-700/40"
+          onClick={() => navigate('/leaderboard/admin')}
+        >
+          Manage Leaderboard
+        </button>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 mt-8 w-full max-w-7xl">
         {(liveDatasets.length ? liveDatasets : datasets).map((dataset, index) => (
