@@ -14,6 +14,8 @@ import { useDispatch } from "react-redux";
 import { useLocation } from "react-router-dom";
 import { robotHeader } from "../util/RobotHeader";
 import Leaderboard from "./landing_page_components/Leaderboard";
+import SubmitToLeaderboard  from "./landing_page_components/SubmitToLeaderboard"
+import { submittoleaderboardPath } from "../constants/RouteConstants";
 
 function LandingPage() {
   const location = useLocation();
@@ -58,6 +60,7 @@ function LandingPage() {
       <div className="">
         <Routes>
           <Route index element={<Leaderboard />} />,
+          <Route path={submittoleaderboardPath} index element={<SubmitToLeaderboard />} />,
           <Route path="*" element={<Navigate replace to="/" />} />
         </Routes>
       </div>

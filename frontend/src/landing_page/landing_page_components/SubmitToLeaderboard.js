@@ -1,0 +1,1008 @@
+import React, { useRef, useState, useEffect } from "react";
+import Papa from "papaparse";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faArrowRight, faX } from "@fortawesome/free-solid-svg-icons";
+import { Modal, TextInput } from "flowbite-react";
+import Select from "react-select";
+import { useDispatch } from "react-redux";
+import { FaDatabase } from "react-icons/fa";
+
+// import { loadDatasets, useDatasets } from "../../redux/DatasetSlice";
+import { SelectStyles } from "../../styles/SelectStyles";
+
+import {
+  FlowPage,
+  NLPTask,
+  NLPTaskMap,
+  FlowType,
+  NLPTaskFileName,
+  FlowTypeFileName,
+} from "../../constants/DbEnums";
+
+const SubmitToLeaderboard = ({
+  flowType = FlowType.PREDICT,
+  // Hooks to navigate out or set page states
+  setPageNumber,
+  backHome,
+
+  // Hooks related to CSV data
+  setLocalCsvData,
+  setHasMoreRows,
+
+  // Hooks related to dataset info
+  nameToGive,
+  setNameToGive,
+  trainingFlow,
+  setTrainingFlow,
+  csvFileName,
+  setCsvFileName,
+  documentBankFileNames,
+  setDocumentBankFileNames,
+  assignedTaskType,
+  setAssignedTaskType,
+  selectedDatasetId,
+  setSelectedDatasetId,
+}) => {
+  // ---------- Additional State for User/Organization Form ----------
+
+  const [formData, setFormData] = useState({
+    benchmarkDataset: "",
+    submissionName: "",
+    firstName: "",
+    lastName: "",
+    email: "",
+    companyName: "",
+    jobTitle: "",
+    linkedIn: "",
+  });
+  const [submissionStatus, setSubmissionStatus] = useState("");
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await fetch("https://script.google.com/macros/s/YOUR_SCRIPT_URL/exec", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+
+      if (response.ok) {
+        setSubmissionStatus("Success! Your submission has been received.");
+        setFormData({
+          benchmarkDataset: "",
+          submissionName: "",
+          firstName: "",
+          lastName: "",
+          email: "",
+          companyName: "",
+          jobTitle: "",
+          linkedIn: "",
+        });
+      } else {
+        setSubmissionStatus("Error! Please try again or contact nvidra@anote.ai.");
+      }
+    } catch (error) {
+      setSubmissionStatus("Failed to submit. Please check your connection.");
+    }
+  };
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
+  };
+
+  // ---------- Existing local states ----------
+  const fileInputRefCsv = useRef(null);
+  const fileInputRefDocumentBanks = useRef(null);
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedTaskType, setSelectedTaskType] = useState("");
+
+  // Toggling whether input text col is doc name
+  const [inputTextColContainsDocumentNames, setInputTextColContainsDocumentNames] =
+    useState(false);
+
+  // Drag state
+  const [isCsvDragActive, setIsCsvDragActive] = useState(false);
+  const [isDocBankDragActive, setIsDocBankDragActive] = useState(false);
+
+  // Some conditions from your existing snippet
+  let dispatch = useDispatch();
+  useEffect(() => {
+    // If we’re in PREDICT flow, load known datasets from the Redux store
+    if (flowType === FlowType.PREDICT) {
+      // dispatch(loadDatasets());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // const datasets = useDatasets();
+  const datasets = [];
+
+  // ---------- SHOW/HIDE Conditionals (ported from snippet) ----------
+  let showDocumentNameOrRawTextToggle = false;
+  if (
+    flowType === FlowType.TRAIN ||
+    flowType === FlowType.PREDICT
+  ) {
+    if (
+      assignedTaskType === NLPTask.TEXT_CLASSIFICATION ||
+      assignedTaskType === NLPTask.PROMPTING
+    ) {
+      showDocumentNameOrRawTextToggle = true;
+    }
+  }
+
+  const showLockedTaskType = flowType === FlowType.PREDICT;
+  const showChooseTrainingFlow = flowType === FlowType.TRAIN;
+  const showChooseDataset = flowType === FlowType.PREDICT;
+  const showUploadDocumentBank =
+    assignedTaskType === NLPTask.CHATBOT && flowType !== FlowType.EVALUATE;
+
+  // (From snippet: Next button enabling logic)
+  let enableNextButton = false;
+  if (flowType === FlowType.PREDICT) {
+    if (
+      selectedDatasetId &&
+      assignedTaskType !== -1 &&
+      csvFileName &&
+      nameToGive
+    ) {
+      if (
+        assignedTaskType === NLPTask.CHATBOT ||
+        (inputTextColContainsDocumentNames &&
+          showDocumentNameOrRawTextToggle)
+      ) {
+        if (documentBankFileNames.length > 0) {
+          enableNextButton = true;
+        }
+      } else {
+        enableNextButton = true;
+      }
+    }
+  }
+
+  // ---------- Title and placeholders (Train/Predict/Evaluate) ----------
+  let placeHolderName = "";
+  let titleName = "";
+  if (flowType === FlowType.TRAIN) {
+    placeHolderName = "Enter Dataset Name";
+    titleName = "Train";
+  } else if (flowType === FlowType.PREDICT) {
+    placeHolderName = "Enter Predict Report Name";
+    titleName = "Predict";
+  } else if (flowType === FlowType.EVALUATE) {
+    placeHolderName = "Enter Evaluation Report Name";
+    titleName = "Evaluate";
+  }
+
+  // ---------- Form onChange Handler (User Info) ----------
+  const handleUserFormChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  // ---------- CSV & Document Bank Upload Handlers ----------
+  const handleCsvFileUpload = async (event) => {
+    if (event.target.files.length > 0) {
+      const file = event.target.files[0];
+      if (file) {
+        setCsvFileName(file);
+        Papa.parse(file, {
+          header: true,
+          complete: function (results) {
+            const maxRows = 100;
+            const limitedRows = results.data.slice(0, maxRows);
+            const moreRowsFlag = results.data.length > maxRows;
+            setHasMoreRows(moreRowsFlag);
+            setLocalCsvData({
+              headers: Object.keys(results.data[0]),
+              rows: limitedRows,
+            });
+          },
+        });
+      }
+    }
+  };
+
+  const handleDropCsv = async (event) => {
+    event.preventDefault();
+    const file = event.dataTransfer.files[0];
+    if (file) {
+      setCsvFileName(file);
+      Papa.parse(file, {
+        header: true,
+        complete: function (results) {
+          const maxRows = 100;
+          const limitedRows = results.data.slice(0, maxRows);
+          const moreRowsFlag = results.data.length > maxRows;
+          setHasMoreRows(moreRowsFlag);
+          setLocalCsvData({
+            headers: Object.keys(results.data[0]),
+            rows: limitedRows,
+          });
+        },
+      });
+    }
+  };
+
+  const handleDocumentBankFileUpload = (event) => {
+    const files = Array.from(event.target.files);
+    if (files.length > 0) {
+      setDocumentBankFileNames(files);
+    }
+  };
+
+  const handleDropDocumentBanks = (event) => {
+    event.preventDefault();
+    const files = Array.from(event.dataTransfer.files);
+    setDocumentBankFileNames(files);
+  };
+
+  // ---------- Drag Over/Enter/Leave for CSV and Document bank ----------
+  const handleDragOver = (event) => {
+    event.preventDefault();
+  };
+  const handleDragEnterCsv = (event) => {
+    event.preventDefault();
+    setIsCsvDragActive(true);
+  };
+  const handleDragLeaveCsv = (event) => {
+    event.preventDefault();
+    setIsCsvDragActive(false);
+  };
+  const handleDragEnterDocumentBanks = (event) => {
+    event.preventDefault();
+    setIsDocBankDragActive(true);
+  };
+  const handleDragLeaveDocumentBanks = (event) => {
+    event.preventDefault();
+    setIsDocBankDragActive(false);
+  };
+
+  // ---------- Download Example CSV (if task type selected) ----------
+  const handleDownloadExampleCsv = () => {
+    if (assignedTaskType == null) {
+      alert("Please select a task type before downloading the example CSV.");
+      return;
+    }
+    const fileName = `${FlowTypeFileName[flowType]}_${NLPTaskFileName[assignedTaskType]}.csv`;
+    const filePath = `/example_csvs/${fileName}`;
+    const link = document.createElement("a");
+    link.href = filePath;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // ---------- Benchmark Dataset Modal & Options ----------
+  const connectorOptions = [
+    { value: "Bizbench", label: "Bizbench", taskType: "Chatbot" },
+    { value: "Financebench", label: "Financebench", taskType: "Chatbot" },
+    { value: "Emotion", label: "Emotion", taskType: "Classification" },
+    { value: "Finance", label: "Finance", taskType: "Classification" },
+    { value: "MedQuAD", label: "MedQuAD", taskType: "Chatbot" },
+    { value: "PubMed", label: "PubMed", taskType: "Classification" },
+    { value: "QuoraQuAD", label: "QuoraQuAD", taskType: "Chatbot" },
+    { value: "RagInstruct", label: "RagInstruct", taskType: "Chatbot" },
+    { value: "ArcChallenge", label: "ArcChallenge", taskType: "Miscellaneous" },
+    { value: "MMLU", label: "MMLU", taskType: "Miscellaneous" },
+    { value: "Commonsense", label: "Commonsense", taskType: "Miscellaneous" },
+    { value: "Geolocation", label: "Geolocation", taskType: "Miscellaneous" },
+  ];
+
+  const filteredOptions = connectorOptions.filter(
+    (option) => selectedTaskType === "" || option.taskType === selectedTaskType
+  );
+
+  // For the <Select> dropdown, we’ll just use the same list (ignoring taskType filtering):
+  const connectorOptionsForSelect = connectorOptions.map((o) => ({
+    value: o.value,
+    label: o.label,
+  }));
+
+  const handleOpenModal = () => setIsModalOpen(true);
+  const handleCloseModal = () => setIsModalOpen(false);
+
+  const handleDatasetSelect = async (datasetName) => {
+    // Simulate a dataset CSV download
+    const fileName = `${datasetName}.csv`;
+    const filePath = `/benchmark_csvs/${datasetName}.csv`;
+    const link = document.createElement("a");
+    link.href = filePath;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    handleCloseModal();
+  };
+
+  const onConnectorCardClick = (value) => {
+    handleDatasetSelect(value);
+  };
+
+  // For the <Select> onChange
+  const onBenchmarkSelectChange = (selectedOption) => {
+    // Store the dataset ID in local or global state
+    setSelectedDatasetId(selectedOption.value);
+    // Also set assignedTaskType based on match
+    const found = connectorOptions.find((o) => o.value === selectedOption.value);
+    if (found) {
+      setSelectedTaskType(found.taskType);
+    }
+  };
+
+  // ---------- Task Selector Component (if needed) ----------
+  const taskSelectorComponent = (
+    <div>
+      <div>{showLockedTaskType ? "Task Type" : "Choose a Task Type"}</div>
+      <div className="w-full flex flex-row items-center bg-gray-800 rounded-full py-0 mt-2">
+        {Object.entries(NLPTask).map(([key, value]) => (
+          <div
+            key={value}
+            className={`py-2 w-1/4 text-center cursor-pointer ${
+              assignedTaskType === value
+                ? "bg-gray-900 border border-blue-300 rounded-full"
+                : ""
+            }`}
+            onClick={() => {
+              // Only allow changing if not locked
+              if (!showLockedTaskType) {
+                setAssignedTaskType(value);
+              }
+            }}
+          >
+            {NLPTaskMap[value]}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  // ---------- Render Document Bank File Names ----------
+  const renderFileNames = () => {
+    if (documentBankFileNames.length > 0) {
+      return (
+        <div className="text-white mt-2 max-h-32 overflow-y-auto">
+          {documentBankFileNames.map((file, index) => (
+            <div key={index}>{file.name}</div>
+          ))}
+        </div>
+      );
+    } else {
+      return <div className="text-white mt-2">No file selected</div>;
+    }
+  };
+
+  // ---------- Form Submission (final) ----------
+  // const handleSubmit = async (e) => {
+  //   e.preventDefault();
+
+  //   // Basic validation
+  //   if (!csvFileName) {
+  //     alert("Please upload a CSV before submitting.");
+  //     return;
+  //   }
+  //   if (!formData.first_name || !formData.last_name || !formData.email_address) {
+  //     alert("Please fill out your user details before submitting.");
+  //     return;
+  //   }
+
+  //   // Example final object
+  //   const submissionData = {
+  //     userFormData: { ...formData },
+  //     csvName: csvFileName?.name || "",
+  //     selectedDatasetId,
+  //     assignedTaskType,
+  //     // The "Submission Name" is the same as nameToGive
+  //     nameToGive,
+  //   };
+
+  //   console.log("Submitting to Leaderboard:", submissionData);
+
+  //   // Here you can do an API call, e.g.:
+  //   // try {
+  //   //   await axios.post("/api/submit-leaderboard", submissionData);
+  //   //   alert("Submission successful!");
+  //   //   ...
+  //   // } catch (error) {
+  //   //   console.error(error);
+  //   //   ...
+  //   // }
+
+  //   setSubmissionStatus("Success! Your submission was received.");
+  //   // Possibly reset form or navigate away
+  //   // backHome();
+  // };
+
+  return (
+    <div className="w-screen bg-gray-900 text-white min-h-screen flex items-center justify-center">
+      <div className="w-full bg-gray-900 max-w-4xl mx-auto border border-blue-300 mt-8 px-10 py-5 rounded-xl text-white space-y-5">
+        {/* Header + Close */}
+        <div className="flex flex-row items-center justify-between">
+          <div className="font-bold text-xl">Model Leaderboard Submission</div>
+          {/* <div
+            className="hover:cursor-pointer"
+            onClick={() => {
+              if (flowType !== FlowType.PREDICT) {
+                backHome && backHome();
+              } else {
+                setPageNumber && setPageNumber(FlowPage.FLOW_OPTIONS);
+              }
+            }}
+          >
+            <FontAwesomeIcon className="text-xs" icon={faX} />
+          </div> */}
+        </div>
+
+        {/* 1) Name to Give (from snippet) */}
+        {/* <TextInput
+          className="mt-2"
+          value={nameToGive}
+          onChange={(e) => setNameToGive(e.target.value)}
+          type="text"
+          placeholder={placeHolderName}
+        /> */}
+
+        {/* 2) Task Selector */}
+        {/* {!showLockedTaskType && taskSelectorComponent}
+        {showChooseTrainingFlow && (
+          <div>
+            <div>Choose Training Flow</div>
+            <div className="w-1/2 flex flex-row items-center bg-gray-800 rounded-full py-0 mt-2">
+              <div
+                className={`py-2 w-1/2 text-center cursor-pointer ${
+                  trainingFlow === 1
+                    ? "bg-gray-900 border border-blue-300 rounded-full"
+                    : ""
+                }`}
+                onClick={() => setTrainingFlow(1)}
+              >
+                Supervised
+              </div>
+              <div
+                className={`py-2 w-1/2 text-center cursor-pointer relative select-none ${
+                  trainingFlow === 2
+                    ? "bg-gray-900 border border-blue-300 rounded-full"
+                    : ""
+                }`}
+                onClick={() => {
+                  // Currently mocked
+                  alert("Unsupervised is Coming Soon!");
+                }}
+              >
+                Unsupervised
+              </div>
+            </div>
+          </div>
+        )} */}
+
+        {/* 3) Toggle "Per Line" or "Per Document" if classification or prompting */}
+        {/* {showDocumentNameOrRawTextToggle && (
+          <div className="flex items-center space-x-4">
+            <label className="text-white font-semibold" htmlFor="document-name-toggle">
+              Per Line or Per Document
+            </label>
+            <div
+              className={`relative inline-flex items-center h-6 rounded-full w-11 cursor-pointer ${
+                inputTextColContainsDocumentNames ? "bg-blue-500" : "bg-gray-700"
+              }`}
+              onClick={() =>
+                setInputTextColContainsDocumentNames((prev) => !prev)
+              }
+            >
+              <span
+                className={`inline-block w-4 h-4 transform rounded-full bg-white transition-transform duration-200 ease-in-out ${
+                  inputTextColContainsDocumentNames
+                    ? "translate-x-6"
+                    : "translate-x-1"
+                }`}
+              />
+            </div>
+            <span className="text-sm text-gray-400">
+              {inputTextColContainsDocumentNames ? "Per Document" : "Per Line"}
+            </span>
+          </div>
+        )} */}
+
+        {/* 4) If chatbot or "Per Document," show Document Bank upload */}
+        {/* {(showUploadDocumentBank || inputTextColContainsDocumentNames) && (
+          <div
+            onDragOver={handleDragOver}
+            onDragEnter={handleDragEnterDocumentBanks}
+            onDragLeave={handleDragLeaveDocumentBanks}
+            onDrop={handleDropDocumentBanks}
+            onClick={() => fileInputRefDocumentBanks.current?.click()}
+            className={`w-full rounded bg-gray-800 h-[30vh] flex flex-col items-center justify-center py-4 cursor-pointer ${
+              isDocBankDragActive ? "bg-blue-500" : ""
+            }`}
+          >
+            <img src="/icons/cloud_arrow_icon.svg" alt="upload icon" />
+            <div className="font-semibold">
+              {inputTextColContainsDocumentNames
+                ? "Upload Documents"
+                : "Upload Testing Data"}
+            </div>
+            <div className="text-xs text-gray-400">
+              Files Supported: pdf, docx, jpeg, csv, etc.
+            </div>
+            <div className="text-white text-sm mt-2">or</div>
+            <button className="border border-[#40C6FF] text-[#40C6FF] px-4 py-1 rounded-lg mt-2">
+              Browse Files
+            </button>
+            {renderFileNames()}
+            <input
+              type="file"
+              className="hidden"
+              multiple
+              ref={fileInputRefDocumentBanks}
+              onChange={handleDocumentBankFileUpload}
+            />
+          </div>
+        )} */}
+
+        {/* 5) Drag-and-Drop CSV */}
+        {/* <div
+          onDragOver={handleDragOver}
+          onDragEnter={handleDragEnterCsv}
+          onDragLeave={handleDragLeaveCsv}
+          onDrop={handleDropCsv}
+          onClick={() => fileInputRefCsv.current?.click()}
+          className={`w-full rounded bg-gray-800 h-[30vh] flex flex-col items-center justify-center py-4 cursor-pointer ${
+            isCsvDragActive ? "bg-blue-500" : ""
+          }`}
+        >
+          <img src="/icons/cloud_arrow_icon.svg" alt="upload icon" />
+          <div className="font-semibold">
+            Drag and drop your Training CSV File here
+          </div>
+          <div className="text-xs text-gray-400">
+            Files Supported: A single CSV file
+          </div>
+          <div className="text-white text-sm mt-2">or</div>
+          <button className="border border-[#40C6FF] text-[#40C6FF] px-4 py-1 rounded-lg mt-2">
+            Browse Files
+          </button>
+          <div className="text-white mt-2">
+            {csvFileName ? `Selected File: ${csvFileName.name}` : "No file selected"}
+          </div>
+          <input
+            type="file"
+            accept=".csv"
+            className="hidden"
+            ref={fileInputRefCsv}
+            onChange={handleCsvFileUpload}
+          />
+        </div>
+
+        {flowType === FlowType.PREDICT && (
+          <a
+            href="#"
+            className="underline text-sm text-yellow-500"
+            onClick={handleOpenModal}
+          >
+            Select Benchmark Dataset
+          </a>
+        )}
+        <a
+          href="#"
+          className="underline text-sm text-yellow-500 ml-6"
+          onClick={handleDownloadExampleCsv}
+        >
+          Download Example CSV
+        </a> */}
+                {flowType === FlowType.PREDICT && (
+          <button
+            href="#"
+            className="underline text-sm text-yellow-500"
+            onClick={handleOpenModal}
+          >
+            Download Benchmark Dataset
+          </button>
+        )}
+
+{/* <div className="w-screen bg-gray-900 text-white min-h-screen flex items-center justify-center">
+      <div className="bg-gray-800 p-8 rounded-lg shadow-lg w-full max-w-2xl"> */}
+        {/* <h2 className="text-3xl font-bold mb-6 text-center">Submit to Model Leaderboard</h2> */}
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm mb-1">Benchmark Dataset Name</label>
+              <input
+                type="text"
+                name="benchmarkDataset"
+                value={formData.benchmarkDataset}
+                onChange={handleChange}
+                className="w-full px-4 py-2 rounded-md bg-gray-700 focus:ring-2 focus:ring-blue-400"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm mb-1">Submission Name</label>
+              <input
+                type="text"
+                name="submissionName"
+                value={formData.submissionName}
+                onChange={handleChange}
+                className="w-full px-4 py-2 rounded-md bg-gray-700 focus:ring-2 focus:ring-blue-400"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm mb-1">First Name</label>
+              <input
+                type="text"
+                name="firstName"
+                value={formData.firstName}
+                onChange={handleChange}
+                className="w-full px-4 py-2 rounded-md bg-gray-700 focus:ring-2 focus:ring-blue-400"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm mb-1">Last Name</label>
+              <input
+                type="text"
+                name="lastName"
+                value={formData.lastName}
+                onChange={handleChange}
+                className="w-full px-4 py-2 rounded-md bg-gray-700 focus:ring-2 focus:ring-blue-400"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm mb-1">Email</label>
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                className="w-full px-4 py-2 rounded-md bg-gray-700 focus:ring-2 focus:ring-blue-400"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm mb-1">Company Name</label>
+              <input
+                type="text"
+                name="companyName"
+                value={formData.companyName}
+                onChange={handleChange}
+                className="w-full px-4 py-2 rounded-md bg-gray-700 focus:ring-2 focus:ring-blue-400"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm mb-1">Job Title</label>
+              <input
+                type="text"
+                name="jobTitle"
+                value={formData.jobTitle}
+                onChange={handleChange}
+                className="w-full px-4 py-2 rounded-md bg-gray-700 focus:ring-2 focus:ring-blue-400"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm mb-1">LinkedIn URL</label>
+              <input
+                type="url"
+                name="linkedIn"
+                value={formData.linkedIn}
+                onChange={handleChange}
+                className="w-full px-4 py-2 rounded-md bg-gray-700 focus:ring-2 focus:ring-blue-400"
+              />
+            </div>
+          </div>
+          <button
+            type="submit"
+            className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md focus:ring-4 focus:ring-blue-300"
+          >
+            Submit
+          </button>
+        </form>
+        {submissionStatus && <p className="mt-4 text-center text-sm">{submissionStatus}</p>}
+      {/* </div>
+    </div> */}
+        {/* <div>
+          <form className="mt-4" onSubmit={handleSubmit}>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm mb-1">Submission Name</label>
+                <input
+                  type="text"
+                  // We tie this to nameToGive to match "Predict Report Name"
+                  value={nameToGive}
+                  onChange={(e) => setNameToGive(e.target.value)}
+                  className="w-full px-4 py-2 rounded-md bg-gray-700 text-white focus:ring-2 focus:ring-blue-400"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm mb-1">Benchmark Dataset</label>
+                <Select
+                  styles={SelectStyles}
+                  options={connectorOptionsForSelect}
+                  placeholder="Select a Benchmark..."
+                  onChange={onBenchmarkSelectChange}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm mb-1">First Name</label>
+                <input
+                  type="text"
+                  name="first_name"
+                  value={formData.first_name}
+                  onChange={handleUserFormChange}
+                  className="w-full px-4 py-2 rounded-md bg-gray-700 text-white focus:ring-2 focus:ring-blue-400"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm mb-1">Last Name</label>
+                <input
+                  type="text"
+                  name="last_name"
+                  value={formData.last_name}
+                  onChange={handleUserFormChange}
+                  className="w-full px-4 py-2 rounded-md bg-gray-700 text-white focus:ring-2 focus:ring-blue-400"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm mb-1">Email Address</label>
+                <input
+                  type="email"
+                  name="email_address"
+                  value={formData.email_address}
+                  onChange={handleUserFormChange}
+                  className="w-full px-4 py-2 rounded-md bg-gray-700 text-white focus:ring-2 focus:ring-blue-400"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm mb-1">Company Name</label>
+                <input
+                  type="text"
+                  name="company_name"
+                  value={formData.company_name}
+                  onChange={handleUserFormChange}
+                  className="w-full px-4 py-2 rounded-md bg-gray-700 text-white focus:ring-2 focus:ring-blue-400"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm mb-1">Job Title</label>
+                <input
+                  type="text"
+                  name="job_title"
+                  value={formData.job_title}
+                  onChange={handleUserFormChange}
+                  className="w-full px-4 py-2 rounded-md bg-gray-700 text-white focus:ring-2 focus:ring-blue-400"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm mb-1">LinkedIn URL</label>
+                <input
+                  type="url"
+                  name="linkedin_url"
+                  value={formData.linkedin_url}
+                  onChange={handleUserFormChange}
+                  className="w-full px-4 py-2 rounded-md bg-gray-700 text-white focus:ring-2 focus:ring-blue-400"
+                />
+              </div>
+            </div> */}
+
+            {/* <div
+          onDragOver={handleDragOver}
+          onDragEnter={handleDragEnterCsv}
+          onDragLeave={handleDragLeaveCsv}
+          onDrop={handleDropCsv}
+          onClick={() => fileInputRefCsv.current?.click()}
+          className={`w-full rounded bg-gray-800 h-[30vh] flex flex-col items-center justify-center py-4 mt-4 cursor-pointer ${
+            isCsvDragActive ? "bg-blue-500" : ""
+          }`}
+        >
+          <img src="/icons/cloud_arrow_icon.svg" alt="upload icon" />
+          <div className="font-semibold">
+            Drag and drop your Training CSV File here
+          </div>
+          <div className="text-xs text-gray-400">
+            Files Supported: A single CSV file
+          </div>
+          <div className="text-white text-sm mt-2">or</div>
+          <button className="border border-[#40C6FF] text-[#40C6FF] px-4 py-1 rounded-lg mt-2">
+            Browse Files
+          </button>
+          <div className="text-white mt-2">
+            {csvFileName ? `Selected File: ${csvFileName.name}` : "No file selected"}
+          </div>
+          <input
+            type="file"
+            accept=".csv"
+            className="hidden"
+            ref={fileInputRefCsv}
+            onChange={handleCsvFileUpload}
+          />
+        </div> */}
+
+        {/* 6) Modal link + Example CSV link */}
+        {/* <a
+          href="#"
+          className="underline text-sm text-yellow-500 ml-6"
+          onClick={handleDownloadExampleCsv}
+        >
+          Download Example CSV
+        </a> */}
+
+
+            {/* Submit Button */}
+            {/* <button
+              type="submit"
+              className="mt-6 bg-blue-500 hover:bg-[#28b8fb] text-white font-bold py-2 px-4 rounded-md focus:ring-4 focus:ring-blue-300"
+              href="mailto:nvidra@anote.ai"
+            >
+              Submit to Leaderboard
+            </button>
+          </form> */}
+        </div>
+{/*
+        {submissionStatus && (
+          <p className="mt-4 text-center text-sm text-green-400">
+            {submissionStatus}
+          </p>
+        )} */}
+
+        {/* 8) Cancel / Next Buttons from snippet (optional) */}
+        {/* <div className="w-full flex flex-row items-center justify-between mt-4">
+          <button
+            onClick={() => {
+              // If we have a flow separation, you can do different logic
+              if (flowType !== FlowType.PREDICT) {
+                backHome && backHome();
+              } else {
+                setPageNumber && setPageNumber(FlowPage.FLOW_OPTIONS);
+              }
+            }}
+            className="py-1.5 px-8 rounded-full border border-white"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => {
+              setPageNumber && setPageNumber(FlowPage.CSV_SELECTOR);
+            }}
+            disabled={!enableNextButton}
+            className="py-1.5 px-8 rounded-full border border-white flex flex-row items-center space-x-4 disabled:cursor-not-allowed disabled:border-gray-500 disabled:text-gray-500"
+          >
+            <span>Next</span>
+            <FontAwesomeIcon icon={faArrowRight} />
+          </button>
+        </div> */}
+
+      {/* Benchmark Datasets Modal */}
+      {isModalOpen && (
+        <Modal
+          size="3xl"
+          show={isModalOpen}
+          onClose={handleCloseModal}
+          theme={{
+            root: {
+              show: {
+                on: "flex bg-gray-900 bg-opacity-50 dark:bg-opacity-80",
+              },
+            },
+            content: {
+              base: "relative h-full w-full p-4 md:h-auto",
+              inner: "relative rounded-lg shadow bg-gray-800 flex flex-col max-h-[90vh] text-white",
+            },
+          }}
+        >
+          <Modal.Header className="border-b border-gray-600 pb-1 text-center">
+            <div className="flex justify-center items-center w-full text-center">
+              <h2 className="font-bold text-xl text-center text-white">
+                Benchmark Datasets
+              </h2>
+            </div>
+          </Modal.Header>
+          <Modal.Body className="w-full overflow-y-auto">
+            <div className="text-center mb-4 text-sm">
+              Supported benchmark test datasets include various task types like
+              Classification, Chatbot, NER, and Prompting.
+            </div>
+
+            {/* Buttons to filter dataset cards by type */}
+            <div className="flex justify-center space-x-4 mb-6">
+              <button
+                className={`px-4 py-2 rounded-lg transition-all duration-300 transform hover:scale-105 ${
+                  selectedTaskType === "Classification"
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-600 text-gray-200 hover:bg-gray-500"
+                }`}
+                onClick={() => setSelectedTaskType("Classification")}
+              >
+                Classification
+              </button>
+              <button
+                className={`px-4 py-2 rounded-lg transition-all duration-300 transform hover:scale-105 ${
+                  selectedTaskType === "Chatbot"
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-600 text-gray-200 hover:bg-gray-500"
+                }`}
+                onClick={() => setSelectedTaskType("Chatbot")}
+              >
+                Chatbot
+              </button>
+              <button
+                className={`px-4 py-2 rounded-lg transition-all duration-300 transform hover:scale-105 ${
+                  selectedTaskType === "NER"
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-600 text-gray-200 hover:bg-gray-500"
+                }`}
+                onClick={() => setSelectedTaskType("NER")}
+              >
+                NER
+              </button>
+              <button
+                className={`px-4 py-2 rounded-lg transition-all duration-300 transform hover:scale-105 ${
+                  selectedTaskType === "Prompting"
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-600 text-gray-200 hover:bg-gray-500"
+                }`}
+                onClick={() => setSelectedTaskType("Prompting")}
+              >
+                Prompting
+              </button>
+              <button
+                className={`px-4 py-2 rounded-lg transition-all duration-300 transform hover:scale-105 ${
+                  selectedTaskType === ""
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-600 text-gray-200 hover:bg-gray-500"
+                }`}
+                onClick={() => setSelectedTaskType("")}
+              >
+                All
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+              {filteredOptions.map((option, index) => (
+                <div
+                  key={index}
+                  className={`p-4 border rounded-lg shadow-md cursor-pointer transition-all duration-300 hover:shadow-xl ${
+                    selectedDatasetId === option.value
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-700 text-gray-200 hover:bg-gray-600"
+                  }`}
+                  onClick={() => onConnectorCardClick(option.value)}
+                >
+                  <div className="flex flex-col items-center text-center">
+                    <FaDatabase className="mb-2" size={20} />
+                    <div className="text-sm font-semibold mb-1">
+                      {option.label}
+                    </div>
+                    <div className="text-xs text-gray-300">
+                      {option.taskType}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Modal.Body>
+        </Modal>
+      )}
+    </div>
+  );
+};
+
+
+export default SubmitToLeaderboard;
