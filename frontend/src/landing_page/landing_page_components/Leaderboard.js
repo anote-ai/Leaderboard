@@ -1,9 +1,49 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { submittoleaderboardPath } from "../../constants/RouteConstants";
 import { useNavigate } from "react-router-dom";
 
 const Leaderboard = () => {
   const [openIndex, setOpenIndex] = useState(null);
+  const [liveDatasets, setLiveDatasets] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const API_BASE = process.env.REACT_APP_API_BASE || process.env.REACT_APP_API_ENDPOINT || "http://localhost:5001";
+
+  useEffect(() => {
+    let ignore = false;
+    const run = async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const res = await fetch(`${API_BASE}/public/get_leaderboard`);
+        const data = await res.json();
+        if (!res.ok || data.success !== true) throw new Error(data.error || "Failed to load leaderboard");
+        const entries = Array.isArray(data.leaderboard) ? data.leaderboard : [];
+        const grouped = entries.reduce((acc, e) => {
+          const key = e.dataset_name || "Unknown Dataset";
+          if (!acc[key]) acc[key] = { name: key, evaluation_metric: e.evaluation_metric, models: [] };
+          acc[key].models.push({
+            model: e.model_name,
+            score: typeof e.score === 'number' ? e.score : Number(e.score) || 0,
+            updated: e.submitted_at ? new Date(e.submitted_at).toLocaleDateString() : "",
+          });
+          return acc;
+        }, {});
+        const groupedArr = Object.values(grouped).map((d) => {
+          d.models.sort((a, b) => b.score - a.score);
+          d.models = d.models.map((m, i) => ({ rank: i + 1, ...m }));
+          return d;
+        });
+        if (!ignore) setLiveDatasets(groupedArr);
+      } catch (e) {
+        if (!ignore) setError(e.message || "Error loading leaderboard");
+      } finally {
+        if (!ignore) setLoading(false);
+      }
+    };
+    run();
+    return () => { ignore = true; };
+  }, [API_BASE]);
 
   const handleClick = (index) => {
     setOpenIndex(openIndex === index ? null : index);
@@ -871,7 +911,7 @@ const Leaderboard = () => {
       "models": [
           {
               "rank": 1,
-              "model": "O1",
+              "model": "GPT-o1",
               "score": 182.73,
               "updated": "Feb 2025"
           },
@@ -976,21 +1016,18 @@ const Leaderboard = () => {
           Model Leaderboard
         </h1>
         <p className="mt-3 text-gray-300/90 text-sm md:text-base">
-          Compare models across datasets. Clean, consistent, and up to date.
+          Compare models across a variety of datasets
         </p>
       </header>
       {/* <button
-        className="btn-black px-6 py-2 mb-8 rounded-md text-lg font-semibold transition-colors"
-        // onClick={() => {navigate(submittoleaderboardPath);}}
-        // href="mailto:nvidra@anote.ai"
-        onClick={() => window.open("      https://docs.google.com/forms/d/e/1FAIpQLSdydF_8sfJQP0ub6VLs9uced32kfHxrvlQzyFRf0IhR1MlMRg/viewform?usp=dialog", "_blank")}
-
+        className="px-6 py-2 mb-8 rounded-md text-lg font-semibold transition-colors border border-blue-500/60 text-blue-300 hover:bg-blue-500/10"
+        onClick={() => {navigate(submittoleaderboardPath);}}
       >
         Submit Model to Leaderboard
       </button> */}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 mt-8 w-full max-w-7xl">
-        {datasets.map((dataset, index) => (
+        {(liveDatasets.length ? liveDatasets : datasets).map((dataset, index) => (
           <div
             key={index}
             className="w-full p-5 md:p-6 bg-gray-900/70 rounded-xl shadow-lg border border-gray-800 hover:border-gray-700 transition-colors"
@@ -999,30 +1036,36 @@ const Leaderboard = () => {
               <h2 className="text-lg md:text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r  from-turquoise-400 to-blue-400">
                 {dataset.name}
               </h2>
-              <a
-                href={dataset.url}
-                className="inline-flex items-center gap-2 text-xs md:text-sm px-3 py-1.5 rounded-full border border-gray-700 text-[#defe47] hover:bg-blue-500/10 transition-colors"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label={`Open dataset ${dataset.name}`}
-              >
-                View Dataset
-                <span aria-hidden>↗</span>
-              </a>
+              {dataset.url ? (
+                <a
+                  href={dataset.url}
+                  className="inline-flex items-center gap-2 text-xs md:text-sm px-3 py-1.5 rounded-full border border-gray-700 text-[#defe47] hover:bg-blue-500/10 transition-colors"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`Open dataset ${dataset.name}`}
+                >
+                  View Dataset
+                  <span aria-hidden>↗</span>
+                </a>
+              ) : (
+                <span className="inline-flex items-center gap-2 text-xs md:text-sm px-3 py-1.5 rounded-full border border-gray-700 text-gray-300">
+                  Metric: {dataset.evaluation_metric || '—'}
+                </span>
+              )}
             </div>
 
             <div className="overflow-hidden rounded-lg border border-gray-800">
-              <div className="grid grid-cols-4 text-white font-semibold text-center bg-gray-900/80 px-4 py-3">
+              <div className="grid grid-cols-3 text-white font-semibold text-center bg-gray-900/80 px-4 py-3">
                 <div>Rank</div>
                 <div>Model</div>
                 <div>Score</div>
-                <div>Last Updated</div>
+                {/* <div>Last Updated</div> */}
               </div>
               <div className="divide-y divide-gray-800">
                 {dataset.models
                   .map((model, modelIndex) => {
                     const isTop = model.rank === 1;
-                    const rowBase = "grid grid-cols-4 text-center px-4 py-3 text-white hover:bg-gray-700/50 transition-colors";
+                    const rowBase = "grid grid-cols-3 text-center px-4 py-3 text-white hover:bg-gray-700/50 transition-colors";
                     const topBg = isTop ? " bg-gradient-to-r from-turquoise-400/15 to-transparent" : "";
                     const score = typeof model.score === 'number' ? model.score.toFixed(model.score < 1 ? 3 : 2) : model.score;
                     return (
@@ -1033,7 +1076,7 @@ const Leaderboard = () => {
                         </div>
                         <div className="truncate" title={model.model}>{model.model}</div>
                         <div className="tabular-nums">{score}{model.ci ? <span className="ml-2 text-xs text-gray-300">({model.ci})</span> : null}</div>
-                        <div className="text-gray-300">{model.updated}</div>
+                        {/* <div className="text-gray-300">{model.updated}</div> */}
                       </div>
                     );
                   })}

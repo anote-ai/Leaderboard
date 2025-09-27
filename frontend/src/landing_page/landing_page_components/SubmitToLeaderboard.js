@@ -1,14 +1,10 @@
 import React, { useRef, useState, useEffect } from "react";
 import Papa from "papaparse";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faArrowRight, faX } from "@fortawesome/free-solid-svg-icons";
-import { Modal, TextInput } from "flowbite-react";
-import Select from "react-select";
-import { useDispatch } from "react-redux";
+import { Modal } from "flowbite-react";
 import { FaDatabase } from "react-icons/fa";
 
 // import { loadDatasets, useDatasets } from "../../redux/DatasetSlice";
-import { SelectStyles } from "../../styles/SelectStyles";
+// import { SelectStyles } from "../../styles/SelectStyles";
 
 import {
   FlowPage,
@@ -18,6 +14,9 @@ import {
   NLPTaskFileName,
   FlowTypeFileName,
 } from "../../constants/DbEnums";
+
+// Simple API base for dev
+const API_BASE = process.env.REACT_APP_API_BASE || process.env.REACT_APP_API_ENDPOINT || "http://localhost:5001";
 
 const SubmitToLeaderboard = ({
   flowType = FlowType.PREDICT,
@@ -43,52 +42,80 @@ const SubmitToLeaderboard = ({
   selectedDatasetId,
   setSelectedDatasetId,
 }) => {
-  // ---------- Additional State for User/Organization Form ----------
+  // ---------- Leaderboard submission state ----------
+  const [datasetKey, setDatasetKey] = useState("flores_spanish_translation");
+  const [count, setCount] = useState(3);
+  const [loadingFetch, setLoadingFetch] = useState(false);
+  const [loadingSubmit, setLoadingSubmit] = useState(false);
+  const [sentenceIds, setSentenceIds] = useState([]);
+  const [sourceSentences, setSourceSentences] = useState([]);
+  const [translations, setTranslations] = useState([]);
+  const [modelNameInput, setModelNameInput] = useState("");
+  const [submitResult, setSubmitResult] = useState(null);
+  const [errorMsg, setErrorMsg] = useState("");
 
-  const [formData, setFormData] = useState({
-    benchmarkDataset: "",
-    submissionName: "",
-    firstName: "",
-    lastName: "",
-    email: "",
-    companyName: "",
-    jobTitle: "",
-    linkedIn: "",
-  });
-  const [submissionStatus, setSubmissionStatus] = useState("");
+  const datasetOptions = [
+    { value: "flores_spanish_translation", label: "Spanish (BLEU)" },
+    { value: "flores_spanish_translation_bertscore", label: "Spanish (BERTScore)" },
+    // Other languages can be added as backend supports them
+  ];
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const fetchSentences = async () => {
+    setErrorMsg("");
+    setSubmitResult(null);
+    setLoadingFetch(true);
     try {
-      const response = await fetch("https://script.google.com/macros/s/YOUR_SCRIPT_URL/exec", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      });
-
-      if (response.ok) {
-        setSubmissionStatus("Success! Your submission has been received.");
-        setFormData({
-          benchmarkDataset: "",
-          submissionName: "",
-          firstName: "",
-          lastName: "",
-          email: "",
-          companyName: "",
-          jobTitle: "",
-          linkedIn: "",
-        });
-      } else {
-        setSubmissionStatus("Error! Please try again or contact nvidra@anote.ai.");
+      const url = new URL(`${API_BASE}/public/get_source_sentences`);
+      url.searchParams.set("dataset_name", datasetKey);
+      url.searchParams.set("count", String(count));
+      url.searchParams.set("start_idx", "0");
+      const res = await fetch(url.toString());
+      const data = await res.json();
+      if (!res.ok || data.success !== true) {
+        throw new Error(data.error || "Failed to fetch sentences");
       }
-    } catch (error) {
-      setSubmissionStatus("Failed to submit. Please check your connection.");
+      setSentenceIds(data.sentence_ids || []);
+      setSourceSentences(data.source_sentences || []);
+      setTranslations(new Array((data.source_sentences || []).length).fill(""));
+    } catch (e) {
+      setErrorMsg(e.message || "Error fetching sentences");
+    } finally {
+      setLoadingFetch(false);
     }
   };
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+  const submitToLeaderboard = async () => {
+    setErrorMsg("");
+    setLoadingSubmit(true);
+    setSubmitResult(null);
+    try {
+      if (!modelNameInput.trim()) {
+        throw new Error("Please enter a model name");
+      }
+      if (translations.length === 0 || translations.some((t) => !t.trim())) {
+        throw new Error("Please provide translations for all sentences");
+      }
+      const payload = {
+        benchmarkDatasetName: datasetKey,
+        modelName: modelNameInput.trim(),
+        modelResults: translations,
+        sentence_ids: sentenceIds,
+      };
+      const res = await fetch(`${API_BASE}/public/submit_model`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok || data.success !== true) {
+        throw new Error(data.error || "Submission failed");
+      }
+      setSubmitResult({ score: data.score });
+    } catch (e) {
+      setErrorMsg(e.message || "Error submitting model");
+    } finally {
+      setLoadingSubmit(false);
+    }
   };
 
   // ---------- Existing local states ----------
@@ -107,7 +134,6 @@ const SubmitToLeaderboard = ({
   const [isDocBankDragActive, setIsDocBankDragActive] = useState(false);
 
   // Some conditions from your existing snippet
-  let dispatch = useDispatch();
   useEffect(() => {
     // If we’re in PREDICT flow, load known datasets from the Redux store
     if (flowType === FlowType.PREDICT) {
@@ -176,11 +202,7 @@ const SubmitToLeaderboard = ({
     titleName = "Evaluate";
   }
 
-  // ---------- Form onChange Handler (User Info) ----------
-  const handleUserFormChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
+  // Legacy user form handlers removed (Google Form flow deprecated)
 
   // ---------- CSV & Document Bank Upload Handlers ----------
   const handleCsvFileUpload = async (event) => {
@@ -597,118 +619,109 @@ const SubmitToLeaderboard = ({
         >
           Download Example CSV
         </a> */}
-                {flowType === FlowType.PREDICT && (
-          <button
-            href="#"
-            className="inline-flex items-center gap-2 text-xs md:text-sm px-3 py-1.5 rounded-full border border-blue-500/60 text-blue-300 hover:bg-blue-500/10 transition-colors"
-            onClick={handleOpenModal}
-          >
-            Download Benchmark Dataset
-            <span aria-hidden>↓</span>
-          </button>
-        )}
+        {/* Submit to Leaderboard (API-connected UI) */}
+        <div className="w-full max-w-3xl mx-auto bg-gray-800/70 border border-gray-700 rounded-xl p-4 md:p-6 mb-8">
+          <div className="text-lg font-semibold text-white mb-3">Submit to Model Leaderboard</div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+            <div className="md:col-span-2">
+              <label className="block text-sm text-gray-300 mb-1">Benchmark</label>
+              <select
+                className="w-full px-3 py-2 rounded-md bg-gray-900 border border-gray-700 text-white"
+                value={datasetKey}
+                onChange={(e) => setDatasetKey(e.target.value)}
+              >
+                {datasetOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm text-gray-300 mb-1"># Sentences</label>
+              <input
+                type="number"
+                min={1}
+                max={5}
+                value={count}
+                onChange={(e) => setCount(Number(e.target.value))}
+                className="w-full px-3 py-2 rounded-md bg-gray-900 border border-gray-700 text-white"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 mb-4">
+            <button
+              type="button"
+              onClick={fetchSentences}
+              disabled={loadingFetch}
+              className="px-4 py-2 rounded-md border border-blue-500/60 text-blue-300 hover:bg-blue-500/10 disabled:opacity-50"
+            >
+              {loadingFetch ? "Fetching…" : "Get Test Sentences"}
+            </button>
+            <div className="text-sm text-gray-300">
+              Use these sentences to generate your translations below.
+            </div>
+          </div>
+
+          {errorMsg ? (
+            <div className="text-sm text-red-400 mb-3">{errorMsg}</div>
+          ) : null}
+
+          {sourceSentences.length > 0 && (
+            <div className="space-y-3 mb-4">
+              {sourceSentences.map((src, idx) => (
+                <div key={idx} className="bg-gray-900 border border-gray-700 rounded-lg p-3">
+                  <div className="text-sm text-gray-300 mb-1">Source #{sentenceIds[idx]}</div>
+                  <div className="text-white mb-2">{src}</div>
+                  <textarea
+                    className="w-full min-h-[60px] px-3 py-2 rounded-md bg-gray-800 border border-gray-700 text-white"
+                    placeholder="Enter your translation here"
+                    value={translations[idx] || ""}
+                    onChange={(e) => {
+                      const next = [...translations];
+                      next[idx] = e.target.value;
+                      setTranslations(next);
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-end">
+            <div>
+              <label className="block text-sm text-gray-300 mb-1">Model Name</label>
+              <input
+                type="text"
+                placeholder="e.g. my-model-v1"
+                value={modelNameInput}
+                onChange={(e) => setModelNameInput(e.target.value)}
+                className="w-full px-3 py-2 rounded-md bg-gray-900 border border-gray-700 text-white"
+              />
+            </div>
+            <div className="flex gap-3 md:justify-end">
+              <button
+                type="button"
+                onClick={submitToLeaderboard}
+                disabled={loadingSubmit || !sentenceIds.length}
+                className="px-4 py-2 rounded-md border border-green-500/60 text-green-300 hover:bg-green-500/10 disabled:opacity-50"
+              >
+                {loadingSubmit ? "Submitting…" : "Submit to Leaderboard"}
+              </button>
+            </div>
+          </div>
+
+          {submitResult && (
+            <div className="mt-4 text-sm text-white">
+              Success! Score: <span className="font-semibold">{submitResult.score?.toFixed(3)}</span>
+            </div>
+          )}
+        </div>
 
 {/* <div className="w-screen bg-gray-900 text-white min-h-screen flex items-center justify-center">
       <div className="bg-gray-800 p-8 rounded-lg shadow-lg w-full max-w-2xl"> */}
         {/* <h2 className="text-3xl font-bold mb-6 text-center">Submit to Model Leaderboard</h2> */}
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm mb-1">Benchmark Dataset Name</label>
-              <input
-                type="text"
-                name="benchmarkDataset"
-                value={formData.benchmarkDataset}
-                onChange={handleChange}
-                className="w-full px-4 py-2 rounded-md bg-gray-800/80 placeholder-gray-400 focus:ring-2 focus:ring-blue-400 border border-gray-700"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm mb-1">Submission Name</label>
-              <input
-                type="text"
-                name="submissionName"
-                value={formData.submissionName}
-                onChange={handleChange}
-                className="w-full px-4 py-2 rounded-md bg-gray-800/80 placeholder-gray-400 focus:ring-2 focus:ring-blue-400 border border-gray-700"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm mb-1">First Name</label>
-              <input
-                type="text"
-                name="firstName"
-                value={formData.firstName}
-                onChange={handleChange}
-                className="w-full px-4 py-2 rounded-md bg-gray-800/80 placeholder-gray-400 focus:ring-2 focus:ring-blue-400 border border-gray-700"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm mb-1">Last Name</label>
-              <input
-                type="text"
-                name="lastName"
-                value={formData.lastName}
-                onChange={handleChange}
-                className="w-full px-4 py-2 rounded-md bg-gray-800/80 placeholder-gray-400 focus:ring-2 focus:ring-blue-400 border border-gray-700"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm mb-1">Email</label>
-              <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                className="w-full px-4 py-2 rounded-md bg-gray-800/80 placeholder-gray-400 focus:ring-2 focus:ring-blue-400 border border-gray-700"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm mb-1">Company Name</label>
-              <input
-                type="text"
-                name="companyName"
-                value={formData.companyName}
-                onChange={handleChange}
-                className="w-full px-4 py-2 rounded-md bg-gray-800/80 placeholder-gray-400 focus:ring-2 focus:ring-blue-400 border border-gray-700"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm mb-1">Job Title</label>
-              <input
-                type="text"
-                name="jobTitle"
-                value={formData.jobTitle}
-                onChange={handleChange}
-                className="w-full px-4 py-2 rounded-md bg-gray-800/80 placeholder-gray-400 focus:ring-2 focus:ring-blue-400 border border-gray-700"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm mb-1">LinkedIn URL</label>
-              <input
-                type="url"
-                name="linkedIn"
-                value={formData.linkedIn}
-                onChange={handleChange}
-                className="w-full px-4 py-2 rounded-md bg-gray-800/80 placeholder-gray-400 focus:ring-2 focus:ring-blue-400 border border-gray-700"
-              />
-            </div>
-          </div>
-          <button
-            type="submit"
-            className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2.5 px-4 rounded-lg focus:ring-4 focus:ring-blue-400/40"
-          >
-            Submit
-          </button>
-        </form>
-        {submissionStatus && <p className="mt-4 text-center text-sm text-gray-300">{submissionStatus}</p>}
+        {/* Legacy Google Form submission UI removed in favor of API-connected workflow above */}
       {/* </div>
     </div> */}
         {/* <div>
