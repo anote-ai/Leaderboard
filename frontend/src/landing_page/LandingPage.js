@@ -19,6 +19,7 @@ import Evaluations  from "./landing_page_components/Evaluations"
 import AdminLeaderboardManager from "./landing_page_components/AdminLeaderboardManager";
 import DatasetDetails from "./landing_page_components/DatasetDetails";
 import { submittoleaderboardPath, adminLeaderboardPath, evaluationsPath, csvBenchmarksPath } from "../constants/RouteConstants";
+import HeaderBar from "./landing_page_components/HeaderBar";
 import CsvBenchmarksDemo from "./landing_page_components/CsvBenchmarksDemo";
 
 function LandingPage() {
@@ -59,9 +60,9 @@ function LandingPage() {
         {robotMetaTag}
       </Helmet>
 
-      {/* <Banner open={open} />
-      <Navbar open={open} setOpen={setOpen} /> */}
-      <div className="">
+      <HeaderBar />
+      {/* <Banner open={open} /> */}
+      <div className="pt-14">
         <Routes>
           <Route index element={<Leaderboard />} />,
           <Route path={submittoleaderboardPath} index element={<SubmitToLeaderboard />} />,
