@@ -22,6 +22,9 @@ export const LeaderboardSDK = {
   listPublicDatasets: () => http('GET', '/public/datasets'),
   addDatasetPublic: (payload) => http('POST', '/public/add_dataset', payload),
   getLeaderboard: () => http('GET', '/public/get_leaderboard'),
+  listBenchmarkCsvs: () => http('GET', '/public/benchmark_csvs'),
+  listBenchmarkModels: () => http('GET', '/public/benchmark_models'),
+  runCsvBenchmarks: (payload) => http('POST', '/public/run_csv_benchmarks', payload),
   getSourceSentences: (params = {}) => {
     const url = new URL(`${API_BASE}/public/get_source_sentences`);
     if (params.dataset_name) url.searchParams.set('dataset_name', params.dataset_name);

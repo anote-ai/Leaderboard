@@ -43,9 +43,37 @@ def get_db_connection():
 
 app = Flask(__name__)
 app.config['JSON_SORT_KEYS'] = False
-CORS(app, resources={r"/*": {"origins": [
-    'http://localhost:3000', 'http://localhost:3001', 'http://localhost:5000', 'http://localhost:5001'
-]}})
+# Allow overriding CORS origins via ALLOWED_ORIGINS env (comma-separated). Defaults to permissive for local dev.
+_origins = os.getenv('ALLOWED_ORIGINS')
+if _origins:
+    _origins_list = [o.strip() for o in _origins.split(',') if o.strip()]
+else:
+    _origins_list = ['*']
+CORS(app, resources={r"/*": {"origins": _origins_list}})
+
+# Lazy import to avoid import-time failures if files not present
+try:
+    import csv_bench  # type: ignore
+except Exception:
+    csv_bench = None
+
+
+# Root welcome endpoint for quick sanity check
+@app.get('/')
+def index():
+    return jsonify({
+        "name": "Anote Leaderboard API",
+        "version": "0.1",
+        "endpoints": [
+            "/health",
+            "/public/datasets",
+            "/public/get_source_sentences",
+            "/public/submit_model",
+            "/public/get_leaderboard",
+            "/api/leaderboard/*"
+        ],
+        "note": "Set PORT=5001 for local frontend integration.",
+    })
 
 
 # Simple health endpoint
@@ -748,6 +776,71 @@ def list_leaderboard_datasets():
         "status": "success",
         "datasets": LEADERBOARD_DATA,
     })
+
+
+# ---------------------------
+# CSV Benchmarks (benchmark_csvs folder)
+# ---------------------------
+@app.get('/public/benchmark_csvs')
+def list_benchmark_csvs():
+    if not csv_bench:
+        return jsonify({"success": False, "error": "CSV benchmark module unavailable"}), 500
+    items = csv_bench.list_csv_datasets()
+    # Only return filename and inferred task for brevity
+    return jsonify({
+        "success": True,
+        "datasets": [
+            {"filename": it["filename"], "task_type": it["task_type"], "columns": it.get("columns")}
+            for it in items
+        ]
+    })
+
+
+@app.get('/public/benchmark_models')
+def list_benchmark_models():
+    try:
+        import models as _mdl  # type: ignore
+        models = _mdl.list_models()
+        return jsonify({"success": True, "models": models})
+    except Exception as e:
+        print(f"list_benchmark_models error: {e}")
+        return jsonify({"success": False, "error": "Model list unavailable"}), 500
+
+
+@app.post('/public/run_csv_benchmarks')
+def run_csv_benchmarks():
+    """Run evaluations over CSV datasets using provided model configs.
+
+    Body JSON:
+      {
+        "models": [
+          {"name": "gpt-4o", "provider": "openai", "model": "gpt-4o-mini"},
+          {"name": "llama3", "provider": "ollama", "model": "llama3:8b"},
+          {"name": "echo", "provider": "echo"}
+        ],
+        "datasets": ["Commonsense.csv", ...],  # optional subset
+        "sample_size": 25                         # optional per dataset
+      }
+    """
+    if not csv_bench:
+        return jsonify({"success": False, "error": "CSV benchmark module unavailable"}), 500
+    data = request.get_json(silent=True) or {}
+    models = data.get('models') or []
+    datasets = data.get('datasets')
+    sample_size = int(data.get('sample_size', 25))
+    if not isinstance(models, list) or not models:
+        # If no models provided, try backend/models.py list_models()
+        try:
+            import models as _mdl  # type: ignore
+            models = _mdl.list_models()
+        except Exception:
+            return jsonify({"success": False, "error": "Missing models list"}), 400
+    try:
+        summary = csv_bench.run_benchmarks(models=models, datasets=datasets, sample_size=sample_size)
+        return jsonify({"success": True, **summary})
+    except Exception as e:
+        print(f"CSV benchmarks error: {e}")
+        return jsonify({"success": False, "error": "Failed to run benchmarks"}), 500
 
 
 if __name__ == '__main__':

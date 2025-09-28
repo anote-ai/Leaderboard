@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { submittoleaderboardPath } from "../../constants/RouteConstants";
+import { submittoleaderboardPath, csvBenchmarksPath } from "../../constants/RouteConstants";
 import { useNavigate } from "react-router-dom";
 
 const Leaderboard = () => {
@@ -1039,9 +1039,9 @@ const Leaderboard = () => {
       <div className="flex gap-3 mt-4">
         <button
           className="px-6 py-2 rounded-md text-lg font-semibold transition-colors border border-blue-500/60 text-blue-300 hover:bg-blue-500/10"
-          onClick={() => navigate(submittoleaderboardPath)}
+          onClick={() => navigate(csvBenchmarksPath)}
         >
-          Submit Model to Leaderboard
+          Run Benchmarks
         </button>
         <button
           className="px-6 py-2 rounded-md text-lg font-semibold transition-colors border border-gray-600 text-gray-300 hover:bg-gray-700/40"
@@ -1049,10 +1049,10 @@ const Leaderboard = () => {
         >
           Manage Leaderboard
         </button>
-        <div className="ml-4 inline-flex border border-gray-700 rounded-md overflow-hidden">
+        {/* <div className="ml-4 inline-flex border border-gray-700 rounded-md overflow-hidden">
           <button onClick={()=>setViewMode('live')} className={`px-3 py-1 text-sm ${viewMode==='live'?'bg-gray-700 text-white':'text-gray-300'}`}>Live</button>
           <button onClick={()=>setViewMode('curated')} className={`px-3 py-1 text-sm ${viewMode==='curated'?'bg-gray-700 text-white':'text-gray-300'}`}>Curated</button>
-        </div>
+        </div> */}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 mt-8 w-full max-w-7xl">

@@ -139,7 +139,7 @@ const AdminLeaderboardManager = () => {
         </section>
       </div>
 
-      <div className="w-full max-w-5xl mt-10">
+      {/* <div className="w-full max-w-5xl mt-10">
         <h3 className="text-white font-semibold mb-3">Current Datasets</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {datasets.map((d, i) => (
@@ -168,7 +168,7 @@ const AdminLeaderboardManager = () => {
             </div>
           ))}
         </div>
-      </div>
+      </div> */}
     </div>
   );
 };

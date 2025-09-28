@@ -71,5 +71,15 @@ class LeaderboardClient:
         }
         return self._request("POST", "/public/submit_model", json=payload)
 
+    # CSV benchmarks
+    def list_benchmark_csvs(self) -> Dict[str, Any]:
+        return self._request("GET", "/public/benchmark_csvs")
+
+    def run_csv_benchmarks(self, models: list[dict], datasets: Optional[list[str]] = None, sample_size: int = 25) -> Dict[str, Any]:
+        payload: Dict[str, Any] = {"models": models, "sample_size": sample_size}
+        if datasets:
+            payload["datasets"] = datasets
+        return self._request("POST", "/public/run_csv_benchmarks", json=payload)
+
 
 __all__ = ["LeaderboardClient"]
