@@ -43,9 +43,37 @@ def get_db_connection():
 
 app = Flask(__name__)
 app.config['JSON_SORT_KEYS'] = False
-CORS(app, resources={r"/*": {"origins": [
-    'http://localhost:3000', 'http://localhost:3001', 'http://localhost:5000', 'http://localhost:5001'
-]}})
+# Allow overriding CORS origins via ALLOWED_ORIGINS env (comma-separated). Defaults to permissive for local dev.
+_origins = os.getenv('ALLOWED_ORIGINS')
+if _origins:
+    _origins_list = [o.strip() for o in _origins.split(',') if o.strip()]
+else:
+    _origins_list = ['*']
+CORS(app, resources={r"/*": {"origins": _origins_list}})
+
+# Lazy import to avoid import-time failures if files not present
+try:
+    import csv_bench  # type: ignore
+except Exception:
+    csv_bench = None
+
+
+# Root welcome endpoint for quick sanity check
+@app.get('/')
+def index():
+    return jsonify({
+        "name": "Anote Leaderboard API",
+        "version": "0.1",
+        "endpoints": [
+            "/health",
+            "/public/datasets",
+            "/public/get_source_sentences",
+            "/public/submit_model",
+            "/public/get_leaderboard",
+            "/api/leaderboard/*"
+        ],
+        "note": "Set PORT=5001 for local frontend integration.",
+    })
 
 
 # Simple health endpoint
@@ -110,13 +138,35 @@ def get_source_sentences():
     except ValueError:
         return jsonify({"success": False, "error": "Invalid count or start_idx"}), 400
 
-    # For now, we support Spanish by default with a local pool.
-    # This keeps the endpoint functional without external dependencies.
-    if dataset_name.startswith('flores_spanish_translation'):
-        pool = _SPANISH_REFERENCES
-    else:
-        # Fallback to the same pool for other languages to keep API responsive
-        pool = _SPANISH_REFERENCES
+    # Try to pull from DB reference_data if available
+    pool = None
+    conn, cursor = get_db_connection()
+    if conn and cursor:
+        try:
+            cursor.execute(
+                "SELECT reference_data FROM benchmark_datasets WHERE name = %s AND active = TRUE",
+                (dataset_name,)
+            )
+            row = cursor.fetchone()
+            if row and row.get('reference_data'):
+                try:
+                    ref = json.loads(row['reference_data']) if isinstance(row['reference_data'], str) else row['reference_data']
+                    if isinstance(ref, dict) and isinstance(ref.get('source_texts'), list):
+                        pool = ref['source_texts']
+                except Exception:
+                    pool = None
+        finally:
+            try:
+                cursor.close(); conn.close()
+            except Exception:
+                pass
+
+    # If DB not available or no source_texts provided, fallback pools by dataset
+    if not pool:
+        if dataset_name.startswith('flores_spanish_translation'):
+            pool = _SPANISH_REFERENCES
+        else:
+            pool = _SPANISH_REFERENCES
 
     if start_idx < 0:
         start_idx = 0
@@ -225,31 +275,172 @@ def submit_model():
             "error": "Length of sentence_ids must match length of modelResults",
         }), 400
 
-    # Choose references. For FLORES Spanish, use our local pool subset by ids.
-    if benchmark_dataset_name.startswith('flores_spanish_translation'):
-        references_pool = _SPANISH_REFERENCES
-        # Guard indices
-        for sid in sentence_ids:
-            if sid < 0 or sid >= len(references_pool):
-                return jsonify({
-                    "success": False,
-                    "error": f"sentence_id {sid} is out of range (0-{len(references_pool)-1})",
-                }), 400
-        references = [references_pool[sid] for sid in sentence_ids]
-    else:
-        # Fallback: use same Spanish pool
-        references = [
-            _SPANISH_REFERENCES[i % len(_SPANISH_REFERENCES)] for i in sentence_ids
-        ]
+    # Pull dataset metadata if available
+    dataset = None
+    conn_meta, cursor_meta = get_db_connection()
+    if conn_meta and cursor_meta:
+        try:
+            cursor_meta.execute(
+                "SELECT id, task_type, evaluation_metric, reference_data FROM benchmark_datasets WHERE name = %s",
+                (benchmark_dataset_name,)
+            )
+            dataset = cursor_meta.fetchone()
+        finally:
+            try:
+                cursor_meta.close(); conn_meta.close()
+            except Exception:
+                pass
 
-    # Determine metric
-    metric = 'bertscore' if benchmark_dataset_name.endswith('_bertscore') else 'bleu'
+    task_type = None
+    metric = None
+    reference_sentences = None
+    reference_labels = None
+    reference_entities = None
+    reference_answers = None
+    if dataset:
+        task_type = dataset.get('task_type')
+        metric = dataset.get('evaluation_metric')
+        try:
+            rd = json.loads(dataset.get('reference_data')) if isinstance(dataset.get('reference_data'), str) else dataset.get('reference_data')
+            if isinstance(rd, dict):
+                if isinstance(rd.get('reference_translations'), list):
+                    # map by sentence_ids
+                    all_refs = rd['reference_translations']
+                    reference_sentences = [all_refs[i] for i in sentence_ids if 0 <= i < len(all_refs)]
+                    if len(reference_sentences) != len(sentence_ids):
+                        reference_sentences = None
+                if isinstance(rd.get('labels'), list):
+                    all_labels = rd['labels']
+                    reference_labels = [all_labels[i] for i in sentence_ids if 0 <= i < len(all_labels)]
+                    if len(reference_labels) != len(sentence_ids):
+                        reference_labels = None
+                if isinstance(rd.get('entities'), list):
+                    all_ents = rd['entities']
+                    reference_entities = [all_ents[i] for i in sentence_ids if 0 <= i < len(all_ents)]
+                    if len(reference_entities) != len(sentence_ids):
+                        reference_entities = None
+                if isinstance(rd.get('answers'), list):
+                    all_ans = rd['answers']
+                    reference_answers = [all_ans[i] for i in sentence_ids if 0 <= i < len(all_ans)]
+                    if len(reference_answers) != len(sentence_ids):
+                        reference_answers = None
+        except Exception:
+            pass
 
+    # Helpers for classification
+    def _accuracy(y_true, y_pred):
+        if not y_true or len(y_true) != len(y_pred):
+            return 0.0
+        correct = sum(1 for a, b in zip(y_true, y_pred) if str(a).strip() == str(b).strip())
+        return float(correct) / float(len(y_true)) if y_true else 0.0
+
+    def _f1_macro(y_true, y_pred):
+        # Simple macro-F1 without external deps
+        from collections import Counter, defaultdict
+        labels = set(map(str, y_true)) | set(map(str, y_pred))
+        tp = Counter(); fp = Counter(); fn = Counter();
+        for t, p in zip(map(str, y_true), map(str, y_pred)):
+            if t == p:
+                tp[t] += 1
+            else:
+                fp[p] += 1
+                fn[t] += 1
+        f1s = []
+        for c in labels:
+            precision = tp[c] / (tp[c] + fp[c]) if (tp[c] + fp[c]) > 0 else 0.0
+            recall = tp[c] / (tp[c] + fn[c]) if (tp[c] + fn[c]) > 0 else 0.0
+            f1 = (2 * precision * recall) / (precision + recall) if (precision + recall) > 0 else 0.0
+            f1s.append(f1)
+        return float(sum(f1s) / len(f1s)) if f1s else 0.0
+
+    # Helpers for NER (simple entity-string macro-F1)
+    def _f1_entities(ref_lists, pred_lists):
+        # Each element is a list of strings. Compute micro or macro? We'll do macro over examples.
+        import math
+        if not ref_lists or not pred_lists or len(ref_lists) != len(pred_lists):
+            return 0.0
+        f1s = []
+        for refs, preds in zip(ref_lists, pred_lists):
+            rs = set(str(r).strip() for r in (refs or []) if str(r).strip())
+            ps = set(str(p).strip() for p in (preds or []) if str(p).strip())
+            tp = len(rs & ps)
+            precision = tp / len(ps) if ps else 0.0
+            recall = tp / len(rs) if rs else 0.0
+            f1 = (2*precision*recall)/(precision+recall) if (precision+recall)>0 else 0.0
+            f1s.append(f1)
+        return float(sum(f1s)/len(f1s)) if f1s else 0.0
+
+    # Helpers for QA (exact/token F1)
+    def _normalize(s: str):
+        import re
+        return re.sub(r"\s+", " ", str(s).strip().lower())
+
+    def _f1_tokens(a, b):
+        at = _normalize(a).split()
+        bt = _normalize(b).split()
+        common = set(at) & set(bt)
+        if not at and not bt:
+            return 1.0
+        if not common:
+            return 0.0
+        prec = len(common) / len(bt) if bt else 0.0
+        rec = len(common) / len(at) if at else 0.0
+        return (2*prec*rec)/(prec+rec) if (prec+rec)>0 else 0.0
+
+    # Evaluate based on task
     try:
-        if metric == 'bleu':
-            score = _get_bleu(model_results, references)
+        tt = (task_type or '').lower()
+        if tt == 'text_classification':
+            if not reference_labels:
+                return jsonify({"success": False, "error": "Dataset does not have reference labels"}), 400
+            metric = (metric or 'accuracy').lower()
+            if metric == 'f1':
+                score = _f1_macro(reference_labels, model_results)
+            else:
+                score = _accuracy(reference_labels, model_results)
+        elif tt == 'ner':
+            if not reference_entities:
+                return jsonify({"success": False, "error": "Dataset does not have reference entities"}), 400
+            # Parse predicted entities by splitting on ';'
+            pred_lists = []
+            for out in model_results:
+                parts = [p.strip() for p in str(out).split(';') if p and str(p).strip()]
+                pred_lists.append(parts)
+            score = _f1_entities(reference_entities, pred_lists)
+        elif tt in ('chatbot', 'prompting', 'qa'):
+            if not reference_answers:
+                return jsonify({"success": False, "error": "Dataset does not have reference answers"}), 400
+            metric = (metric or 'exact').lower()
+            vals = []
+            for ref, pred in zip(reference_answers, model_results):
+                ref_s = ref if isinstance(ref, str) else (ref[0] if isinstance(ref, (list, tuple)) and ref else '')
+                if metric == 'f1':
+                    vals.append(_f1_tokens(ref_s, pred))
+                else:
+                    vals.append(1.0 if _normalize(ref_s) == _normalize(pred) else 0.0)
+            score = float(sum(vals)/len(vals)) if vals else 0.0
         else:
-            score = _optional_bertscore(model_results, references)
+            # translation default path
+            if reference_sentences is None:
+                # Choose references. For FLORES Spanish, use our local pool subset by ids.
+                if benchmark_dataset_name.startswith('flores_spanish_translation'):
+                    references_pool = _SPANISH_REFERENCES
+                    for sid in sentence_ids:
+                        if sid < 0 or sid >= len(references_pool):
+                            return jsonify({
+                                "success": False,
+                                "error": f"sentence_id {sid} is out of range (0-{len(references_pool)-1})",
+                            }), 400
+                    reference_sentences = [references_pool[sid] for sid in sentence_ids]
+                else:
+                    reference_sentences = [
+                        _SPANISH_REFERENCES[i % len(_SPANISH_REFERENCES)] for i in sentence_ids
+                    ]
+            metric = (metric or ('bertscore' if benchmark_dataset_name.endswith('_bertscore') else 'bleu')).lower()
+            if metric == 'bleu':
+                score = _get_bleu(model_results, reference_sentences)
+            else:
+                score = _optional_bertscore(model_results, reference_sentences)
     except Exception as e:
         print(f"Evaluation failed: {e}")
         return jsonify({"success": False, "error": "Evaluation failed"}), 500
@@ -320,6 +511,209 @@ def submit_model():
 
 
 # ---------------------------
+# Public dataset management
+# ---------------------------
+@app.get('/public/datasets')
+def list_public_datasets():
+    """List active benchmark datasets with basic metadata."""
+    conn, cursor = get_db_connection()
+    if conn and cursor:
+        try:
+            cursor.execute(
+                "SELECT name, task_type, evaluation_metric, reference_data, created, active FROM benchmark_datasets WHERE active = TRUE ORDER BY name"
+            )
+            rows = cursor.fetchall()
+            items = []
+            for r in rows:
+                extra = {}
+                if r.get('reference_data'):
+                    try:
+                        rd = json.loads(r['reference_data']) if isinstance(r['reference_data'], str) else r['reference_data']
+                        if isinstance(rd, dict):
+                            # pass through selected user-facing fields if present
+                            for k in ('url', 'description'):
+                                if k in rd:
+                                    extra[k] = rd[k]
+                            if isinstance(rd.get('source_texts'), list):
+                                extra['size'] = len(rd['source_texts'])
+                    except Exception:
+                        pass
+                items.append({
+                    "name": r['name'],
+                    "task_type": r['task_type'],
+                    "evaluation_metric": r['evaluation_metric'],
+                    **extra,
+                })
+            return jsonify({"success": True, "datasets": items})
+        finally:
+            try:
+                cursor.close(); conn.close()
+            except Exception:
+                pass
+    # Fallback if DB not configured: include curated in-memory datasets too
+    fallback = [
+        {"name": "flores_spanish_translation", "task_type": "translation", "evaluation_metric": "bleu"},
+        {"name": "flores_spanish_translation_bertscore", "task_type": "translation", "evaluation_metric": "bertscore"},
+    ]
+    for ds in LEADERBOARD_DATA:
+        fallback.append({
+            "name": ds.get("name"),
+            "task_type": ds.get("task_type"),
+            "evaluation_metric": ds.get("evaluation_metric", ""),
+            "url": ds.get("url"),
+            "description": ds.get("description"),
+        })
+    return jsonify({"success": True, "datasets": fallback})
+
+
+@app.post('/public/add_dataset')
+def add_dataset_public():
+    """Create a new benchmark dataset entry.
+
+    Expected JSON:
+    {
+      "name": str,
+      "task_type": str,  # e.g., translation | text_classification | ner | chatbot | prompting
+      "evaluation_metric": str,  # e.g., bleu | bertscore | accuracy | f1
+      "reference_data": {...}  # optional; may include url, description, source_texts, reference_translations
+    }
+    """
+    data = request.get_json(silent=True) or {}
+    name = data.get('name')
+    task_type = data.get('task_type')
+    evaluation_metric = data.get('evaluation_metric')
+    reference_data = data.get('reference_data') or {}
+
+    if not all([name, task_type, evaluation_metric]):
+        return jsonify({"success": False, "error": "Missing required fields: name, task_type, evaluation_metric"}), 400
+
+    if not isinstance(reference_data, (dict, list)):
+        return jsonify({"success": False, "error": "reference_data must be JSON object or array"}), 400
+
+    conn, cursor = get_db_connection()
+    if not (conn and cursor):
+        # In-memory: store a shadow dataset in curated data for dev
+        LEADERBOARD_DATA.append({
+            "id": str(uuid.uuid4()),
+            "name": name,
+            "task_type": task_type,
+            "description": reference_data.get('description') if isinstance(reference_data, dict) else None,
+            "url": reference_data.get('url') if isinstance(reference_data, dict) else None,
+            "models": [],
+        })
+        return jsonify({"success": True, "message": "Dataset added (in-memory)"})
+
+    try:
+        cursor.execute(
+            "INSERT INTO benchmark_datasets (name, task_type, evaluation_metric, reference_data, active) VALUES (%s, %s, %s, %s, TRUE)",
+            (name, task_type, evaluation_metric, json.dumps(reference_data))
+        )
+        conn.commit()
+        return jsonify({"success": True, "message": "Dataset added"})
+    except Exception as e:
+        if 'Duplicate' in str(e) or 'UNIQUE' in str(e):
+            return jsonify({"success": False, "error": "Dataset with this name already exists"}), 400
+        print(f"add_dataset_public error: {e}")
+        return jsonify({"success": False, "error": "Failed to add dataset"}), 500
+    finally:
+        try:
+            cursor.close(); conn.close()
+        except Exception:
+            pass
+
+
+@app.get('/public/dataset_details')
+def dataset_details():
+    """Return detailed information about a dataset, including curation meta and top models."""
+    name = request.args.get('name')
+    if not name:
+        return jsonify({"success": False, "error": "Missing name"}), 400
+
+    # Try DB first
+    conn, cursor = get_db_connection()
+    if conn and cursor:
+        try:
+            cursor.execute("SELECT id, name, task_type, evaluation_metric, reference_data, created, active FROM benchmark_datasets WHERE name = %s", (name,))
+            ds = cursor.fetchone()
+            if not ds:
+                return jsonify({"success": False, "error": "Dataset not found"}), 404
+            meta = {}
+            examples = []
+            count = None
+            try:
+                rd = json.loads(ds['reference_data']) if isinstance(ds['reference_data'], str) else ds['reference_data']
+                if isinstance(rd, dict):
+                    meta['url'] = rd.get('url')
+                    meta['description'] = rd.get('description')
+                    if isinstance(rd.get('source_texts'), list):
+                        examples = rd['source_texts'][:5]
+                        count = len(rd['source_texts'])
+            except Exception:
+                pass
+
+            # Top models for this dataset
+            cursor.execute(
+                "SELECT ms.model_name, er.score, ms.created as submitted_at "
+                "FROM model_submissions ms JOIN evaluation_results er ON er.model_submission_id = ms.id "
+                "WHERE ms.benchmark_dataset_id = %s ORDER BY er.score DESC LIMIT 10",
+                (ds['id'],)
+            )
+            rows = cursor.fetchall()
+            top_models = [
+                {
+                    "model": r['model_name'],
+                    "score": float(r['score']),
+                    "updated": r['submitted_at'].isoformat() if r.get('submitted_at') else None
+                } for r in rows
+            ]
+            return jsonify({
+                "success": True,
+                "dataset": {
+                    "name": ds['name'],
+                    "task_type": ds['task_type'],
+                    "evaluation_metric": ds['evaluation_metric'],
+                    **meta,
+                    "size": count,
+                    "examples": examples,
+                },
+                "top_models": top_models,
+            })
+        finally:
+            try:
+                cursor.close(); conn.close()
+            except Exception:
+                pass
+
+    # Fallback: find in curated list and memory submissions
+    matched = next((d for d in LEADERBOARD_DATA if d.get('name') == name), None)
+    if not matched and name.startswith('flores_spanish_translation'):
+        matched = {"name": name, "task_type": "translation", "evaluation_metric": "bleu", "description": "FLORES-style demo", "url": None}
+    if not matched:
+        return jsonify({"success": False, "error": "Dataset not found"}), 404
+    # Gather top models from memory store
+    mem = []
+    for ev in _STORE['evaluations']:
+        sub = next((s for s in _STORE['submissions'] if s['id'] == ev['submission_id']), None)
+        if sub and sub['benchmark_dataset_name'] == name:
+            mem.append({"model": sub['model_name'], "score": ev['score'], "updated": sub['created'].isoformat()})
+    mem.sort(key=lambda x: x['score'], reverse=True)
+    examples = _SPANISH_REFERENCES[:5]
+    return jsonify({
+        "success": True,
+        "dataset": {
+            "name": matched.get('name'),
+            "task_type": matched.get('task_type', 'translation'),
+            "evaluation_metric": matched.get('evaluation_metric', 'bleu'),
+            "url": matched.get('url'),
+            "description": matched.get('description'),
+            "size": None,
+            "examples": examples,
+        },
+        "top_models": mem[:10],
+    })
+
+
+# ---------------------------
 # Leaderboard UI API (per README)
 # ---------------------------
 @app.post('/api/leaderboard/add_dataset')
@@ -366,6 +760,87 @@ def add_model():
             ds["models"].sort(key=lambda m: (m.get("rank") is None, m.get("rank")))
             return jsonify({"status": "success", "message": "Model added to dataset on leaderboard."})
     return jsonify({"status": "error", "message": "Dataset not found."}), 404
+
+
+@app.get('/api/leaderboard/list')
+def list_leaderboard_datasets():
+    """Return the curated leaderboard datasets and their models (in-memory).
+
+    Response:
+    {
+      "status": "success",
+      "datasets": [ { id, name, url, task_type, description, models: [...] }, ... ]
+    }
+    """
+    return jsonify({
+        "status": "success",
+        "datasets": LEADERBOARD_DATA,
+    })
+
+
+# ---------------------------
+# CSV Benchmarks (benchmark_csvs folder)
+# ---------------------------
+@app.get('/public/benchmark_csvs')
+def list_benchmark_csvs():
+    if not csv_bench:
+        return jsonify({"success": False, "error": "CSV benchmark module unavailable"}), 500
+    items = csv_bench.list_csv_datasets()
+    # Only return filename and inferred task for brevity
+    return jsonify({
+        "success": True,
+        "datasets": [
+            {"filename": it["filename"], "task_type": it["task_type"], "columns": it.get("columns")}
+            for it in items
+        ]
+    })
+
+
+@app.get('/public/benchmark_models')
+def list_benchmark_models():
+    try:
+        import models as _mdl  # type: ignore
+        models = _mdl.list_models()
+        return jsonify({"success": True, "models": models})
+    except Exception as e:
+        print(f"list_benchmark_models error: {e}")
+        return jsonify({"success": False, "error": "Model list unavailable"}), 500
+
+
+@app.post('/public/run_csv_benchmarks')
+def run_csv_benchmarks():
+    """Run evaluations over CSV datasets using provided model configs.
+
+    Body JSON:
+      {
+        "models": [
+          {"name": "gpt-4o", "provider": "openai", "model": "gpt-4o-mini"},
+          {"name": "llama3", "provider": "ollama", "model": "llama3:8b"},
+          {"name": "echo", "provider": "echo"}
+        ],
+        "datasets": ["Commonsense.csv", ...],  # optional subset
+        "sample_size": 25                         # optional per dataset
+      }
+    """
+    if not csv_bench:
+        return jsonify({"success": False, "error": "CSV benchmark module unavailable"}), 500
+    data = request.get_json(silent=True) or {}
+    models = data.get('models') or []
+    datasets = data.get('datasets')
+    sample_size = int(data.get('sample_size', 25))
+    if not isinstance(models, list) or not models:
+        # If no models provided, try backend/models.py list_models()
+        try:
+            import models as _mdl  # type: ignore
+            models = _mdl.list_models()
+        except Exception:
+            return jsonify({"success": False, "error": "Missing models list"}), 400
+    try:
+        summary = csv_bench.run_benchmarks(models=models, datasets=datasets, sample_size=sample_size)
+        return jsonify({"success": True, **summary})
+    except Exception as e:
+        print(f"CSV benchmarks error: {e}")
+        return jsonify({"success": False, "error": "Failed to run benchmarks"}), 500
 
 
 if __name__ == '__main__':

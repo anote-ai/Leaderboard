@@ -14,8 +14,13 @@ import { useDispatch } from "react-redux";
 import { useLocation } from "react-router-dom";
 import { robotHeader } from "../util/RobotHeader";
 import Leaderboard from "./landing_page_components/Leaderboard";
-import SubmitToLeaderboard  from "./landing_page_components/SubmitToLeaderboard"
-import { submittoleaderboardPath } from "../constants/RouteConstants";
+import SubmitToLeaderboard  from "./landing_page_components/SubmitToLeaderboard";
+import Evaluations  from "./landing_page_components/Evaluations"
+import AdminLeaderboardManager from "./landing_page_components/AdminLeaderboardManager";
+import DatasetDetails from "./landing_page_components/DatasetDetails";
+import { submittoleaderboardPath, adminLeaderboardPath, evaluationsPath, csvBenchmarksPath } from "../constants/RouteConstants";
+import HeaderBar from "./landing_page_components/HeaderBar";
+import CsvBenchmarksDemo from "./landing_page_components/CsvBenchmarksDemo";
 
 function LandingPage() {
   const location = useLocation();
@@ -55,12 +60,16 @@ function LandingPage() {
         {robotMetaTag}
       </Helmet>
 
-      {/* <Banner open={open} />
-      <Navbar open={open} setOpen={setOpen} /> */}
-      <div className="">
+      <HeaderBar />
+      {/* <Banner open={open} /> */}
+      <div className="pt-14">
         <Routes>
           <Route index element={<Leaderboard />} />,
           <Route path={submittoleaderboardPath} index element={<SubmitToLeaderboard />} />,
+          <Route path={evaluationsPath} index element={<Evaluations />} />,
+          <Route path={csvBenchmarksPath} index element={<CsvBenchmarksDemo />} />,
+          <Route path="/dataset/:name" element={<DatasetDetails />} />,
+          <Route path={adminLeaderboardPath} index element={<AdminLeaderboardManager />} />,
           <Route path="*" element={<Navigate replace to="/" />} />
         </Routes>
       </div>
