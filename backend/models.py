@@ -28,6 +28,19 @@ def _getenv(name: str) -> str | None:
     return v if v and v.strip() else None
 
 
+# Security: trust_remote_code=True allows arbitrary code from HF repos to execute.
+# Only models explicitly listed in TRUSTED_REMOTE_CODE_MODELS (env var, comma-separated) are trusted.
+_TRUSTED_REMOTE_CODE_MODELS: set[str] = set(
+    m.strip()
+    for m in os.environ.get("TRUSTED_REMOTE_CODE_MODELS", "").split(",")
+    if m.strip()
+)
+
+def _trust_remote_code(model_name: str) -> bool:
+    """Return True only if model_name is in the explicit allowlist."""
+    return model_name in _TRUSTED_REMOTE_CODE_MODELS
+
+
 def zero_shot_gpt4o(prompt: str) -> str:
     try:
         from openai import OpenAI  # type: ignore
@@ -114,7 +127,7 @@ def zero_shot_llama3(prompt: str) -> str:
         model_name,
         torch_dtype=torch.bfloat16,
         device_map="auto",
-        trust_remote_code=True,
+        trust_remote_code=_trust_remote_code(model_name),
     )
     pipe = pipeline(
         "text-generation",
@@ -140,7 +153,7 @@ def zero_shot_mistral(prompt: str) -> str:
         model_name,
         torch_dtype=torch.bfloat16,
         device_map="auto",
-        trust_remote_code=True,
+        trust_remote_code=_trust_remote_code(model_name),
     )
     pipe = pipeline(
         "text-generation",
