@@ -43,12 +43,24 @@ def get_db_connection():
 
 app = Flask(__name__)
 app.config['JSON_SORT_KEYS'] = False
-# Allow overriding CORS origins via ALLOWED_ORIGINS env (comma-separated). Defaults to permissive for local dev.
-_origins = os.getenv('ALLOWED_ORIGINS')
-if _origins:
-    _origins_list = [o.strip() for o in _origins.split(',') if o.strip()]
+_flask_env = os.environ.get("FLASK_ENV", "production")
+_raw_origins = os.environ.get("ALLOWED_ORIGINS", "")
+
+if _raw_origins:
+    _origins_list = [o.strip() for o in _raw_origins.split(",") if o.strip()]
+elif _flask_env == "development":
+    _origins_list = ["http://localhost:3000", "http://localhost:3001"]
 else:
-    _origins_list = ['*']
+    # Production with no ALLOWED_ORIGINS set — warn loudly and restrict to nothing
+    import warnings
+    warnings.warn(
+        "ALLOWED_ORIGINS is not set. Defaulting to no allowed origins in production. "
+        "Set ALLOWED_ORIGINS env var to allow cross-origin requests.",
+        RuntimeWarning,
+        stacklevel=2,
+    )
+    _origins_list = []
+
 CORS(app, resources={r"/*": {"origins": _origins_list}})
 
 # Lazy import to avoid import-time failures if files not present
