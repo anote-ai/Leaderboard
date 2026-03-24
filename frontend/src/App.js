@@ -2,7 +2,10 @@ import LandingPage from "./landing_page/LandingPage";
 import ReactGA4 from "react-ga4";
 import { BrowserRouter as Router, useLocation } from "react-router-dom";
 import { useEffect } from "react";
-ReactGA4.initialize("G-CMN1GX5JE1");
+const GA_ID = process.env.REACT_APP_GA_ID;
+if (GA_ID) {
+  ReactGA4.initialize(GA_ID);
+}
 
 function PageTracker({subdomain}) {
   let location = useLocation();
