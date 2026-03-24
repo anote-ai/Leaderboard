@@ -1,6 +1,6 @@
 import os
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import uuid
@@ -79,7 +79,7 @@ def index():
 # Simple health endpoint
 @app.get('/health')
 def health():
-    return jsonify({"ok": True, "time": datetime.utcnow().isoformat()})
+    return jsonify({"ok": True, "time": datetime.now(timezone.utc).isoformat()})
 
 
 # ---------------------------
@@ -498,13 +498,13 @@ def submit_model():
             "benchmark_dataset_name": benchmark_dataset_name,
             "model_name": model_name,
             "results": model_results,
-            "created": datetime.utcnow(),
+            "created": datetime.now(timezone.utc),
         })
         _STORE["evaluations"].append({
             "submission_id": submission_id,
             "score": float(score),
             "metric": metric,
-            "created": datetime.utcnow(),
+            "created": datetime.now(timezone.utc),
         })
 
     return jsonify({"success": True, "score": float(score)})
