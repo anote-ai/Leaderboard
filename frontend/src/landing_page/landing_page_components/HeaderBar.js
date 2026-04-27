@@ -25,24 +25,27 @@ export default function HeaderBar() {
       <div className="max-w-7xl mx-auto px-4">
         <div className="h-14 flex items-center justify-between">
           {/* Logo */}
-          <button
-            type="button"
-            onClick={() => navigate('/')}
-            className="flex items-center gap-2.5 shrink-0"
-            aria-label="Go to leaderboard home"
-          >
-            <img src="/logo.png" alt="Anote" className="h-7 w-7" />
-              <a
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => navigate('/')}
+              className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+              aria-label="Go to leaderboard home"
+            >
+              <img src="/logo.png" alt="Anote" className="h-7 w-7" />
+            </button>
+            <a
               href="https://anote.ai"
               target="_blank"
               rel="noopener noreferrer"
-              className="ml-2 px-3 py-1.5 rounded-lg font-medium  hover:bg-[#28b2fb]/[0.08] transition-all duration-150"
+              className="font-bold text-white hover:text-[#defe47] transition-colors duration-150 text-sm"
             >
-                          <span className="font-bold text-white">
               Anote
-                          </span>
             </a>
-          </button>
+            <span className="hidden sm:inline-block text-gray-700 text-xs font-medium ml-1 px-1.5 py-0.5 rounded bg-gray-800/60 border border-gray-700/40">
+              Leaderboard
+            </span>
+          </div>
 
           {/* Desktop nav */}
           <nav className="hidden sm:flex items-center gap-0.5">
@@ -52,23 +55,26 @@ export default function HeaderBar() {
                 type="button"
                 onClick={() => navigate(item.path)}
                 className={[
-                  "px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-150",
+                  "relative px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-150",
                   isActive(item.path)
                     ? "text-[#defe47] font-semibold"
-                    : "text-gray-400 hover:text-gray-100"
+                    : "text-gray-400 hover:text-gray-100 hover:bg-white/[0.04]"
                 ].join(' ')}
               >
                 {item.label}
+                {isActive(item.path) && (
+                  <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-[#defe47]" />
+                )}
               </button>
             ))}
-            {/* <a
+            <a
               href="https://anote.ai"
               target="_blank"
               rel="noopener noreferrer"
-              className="ml-2 px-3 py-1.5 rounded-lg text-sm font-medium text-[#28b2fb] border border-[#28b2fb]/20 hover:bg-[#28b2fb]/[0.08] transition-all duration-150"
+              className="ml-2 px-3 py-1.5 rounded-lg text-sm font-medium text-[#28b2fb] border border-[#28b2fb]/20 hover:bg-[#28b2fb]/[0.08] hover:border-[#28b2fb]/40 transition-all duration-150"
             >
               Anote.ai ↗
-            </a> */}
+            </a>
           </nav>
 
           {/* Mobile hamburger */}
@@ -101,21 +107,21 @@ export default function HeaderBar() {
                 className={[
                   "px-3 py-2 rounded-lg text-sm font-medium text-left transition-all",
                   isActive(item.path)
-                    ? "bg-[#defe47] text-black font-semibold"
+                    ? "bg-[#defe47]/10 text-[#defe47] font-semibold border border-[#defe47]/20"
                     : "text-gray-400 hover:text-gray-100 hover:bg-white/[0.06]"
                 ].join(' ')}
               >
                 {item.label}
               </button>
             ))}
-            {/* <a
+            <a
               href="https://anote.ai"
               target="_blank"
               rel="noopener noreferrer"
               className="px-3 py-2 rounded-lg text-sm font-medium text-[#28b2fb] hover:bg-[#28b2fb]/[0.08] transition-all"
             >
               Anote.ai ↗
-            </a> */}
+            </a>
           </div>
         )}
       </div>

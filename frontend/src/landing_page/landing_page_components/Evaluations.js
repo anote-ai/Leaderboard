@@ -97,36 +97,39 @@ const Evaluations = () => {
             <span className="w-1.5 h-1.5 rounded-full bg-[#defe47] animate-pulse" />
             Live Results
           </div>
-          <h1 className="text-4xl sm:text-5xl font-extrabold bg-gradient-to-r from-[#defe47] via-[#b8f030] to-[#28b2fb] bg-clip-text text-transparent mb-5 leading-tight">
+          <h1 className="text-4xl sm:text-5xl font-extrabold bg-gradient-to-r from-[#defe47] via-[#b8f030] to-[#28b2fb] bg-clip-text text-transparent mb-3 leading-tight">
             Evaluation Leaderboard
           </h1>
+          <p className="text-gray-400 text-sm md:text-base max-w-lg mx-auto mb-6 leading-relaxed">
+            Live results from model submissions across all benchmark datasets.
+          </p>
 
-          {/* <div className="flex flex-wrap items-center justify-center gap-2 mb-7">
+          <div className="flex flex-wrap items-center justify-center gap-2 mb-7">
             <button
-              className="px-5 py-2.5 rounded-lg border border-[#defe47] bg-[#defe47] text-black font-semibold text-sm hover:bg-[#eeff5a] transition-colors active:scale-95 shadow-lg shadow-[#defe47]/10"
+              className="px-4 py-2 rounded-lg border border-[#defe47] bg-[#defe47] text-black font-semibold text-sm hover:bg-[#eeff5a] transition-colors active:scale-95 shadow-lg shadow-[#defe47]/10"
               onClick={() => navigate("/")}
             >
               Main Leaderboard
             </button>
             <button
-              className="px-5 py-2.5 rounded-lg border border-gray-700/80 text-gray-300 text-sm font-medium hover:border-[#28b2fb]/50 hover:text-[#28b2fb] transition-colors active:scale-95"
+              className="px-4 py-2 rounded-lg border border-gray-700/80 text-gray-300 text-sm font-medium hover:border-[#defe47]/40 hover:text-[#defe47] transition-colors active:scale-95"
               onClick={() => navigate(submittoleaderboardPath)}
             >
               Submit Model
             </button>
             <button
-              className="px-5 py-2.5 rounded-lg border border-gray-700/80 text-gray-300 text-sm font-medium hover:border-[#28b2fb]/50 hover:text-[#28b2fb] transition-colors active:scale-95"
+              className="px-4 py-2 rounded-lg border border-gray-700/80 text-gray-300 text-sm font-medium hover:border-[#28b2fb]/40 hover:text-[#28b2fb] transition-colors active:scale-95"
               onClick={() => navigate(addDatasetPath)}
             >
               Add Dataset
             </button>
             <button
-              className="px-5 py-2.5 rounded-lg border border-gray-700/80 text-gray-300 text-sm font-medium hover:border-[#28b2fb]/50 hover:text-[#28b2fb] transition-colors active:scale-95"
+              className="px-4 py-2 rounded-lg border border-gray-700/80 text-gray-300 text-sm font-medium hover:border-[#28b2fb]/40 hover:text-[#28b2fb] transition-colors active:scale-95"
               onClick={() => navigate(csvBenchmarksPath)}
             >
               Run Benchmarks
             </button>
-          </div> */}
+          </div>
           <div className="max-w-xl mx-auto">
             <div className="relative">
               <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

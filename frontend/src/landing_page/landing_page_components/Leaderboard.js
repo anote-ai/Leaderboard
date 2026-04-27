@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { addDatasetPath, csvBenchmarksPath, evaluationsPath, submittoleaderboardPath } from "../../constants/RouteConstants";
 import { useNavigate } from "react-router-dom";
 
@@ -9,6 +9,7 @@ const Leaderboard = () => {
   const [viewMode, setViewMode] = useState('live'); // 'live' | 'curated'
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [query, setQuery] = useState("");
   const API_BASE = process.env.REACT_APP_API_BASE || process.env.REACT_APP_API_ENDPOINT || "http://localhost:5001";
 
   useEffect(() => {
@@ -68,9 +69,9 @@ const Leaderboard = () => {
 
   const faqs = [
     {
-      question: "Where can I find the evaluation datasets",
+      question: "Where can I find the evaluation datasets?",
       answer:
-        "You can access the evaluation set by following the dataset link listed with our submittoleaderboard component. If you have difficulty downloading them or need direct access, just send us an email at nvidra@anote.ai and we will provide the questions promptly.",
+        "You can access the evaluation set by following the dataset link listed on each leaderboard card. If you have difficulty downloading them or need direct access, just send us an email at nvidra@anote.ai and we will provide the data promptly.",
     },
     {
       question: "How many times can I submit?",
@@ -130,7 +131,7 @@ const Leaderboard = () => {
         },
         {
           rank: 5,
-          model: "Query Expansiong",
+          model: "Query Expansion",
           score: 0.256,
           ci: "0.24 - 0.27",
           updated: "Sep 2024",
@@ -1027,9 +1028,19 @@ const Leaderboard = () => {
   ];
   const navigate = useNavigate();
 
-  const displayDatasets = viewMode === 'curated'
+  const baseDatasets = viewMode === 'curated'
     ? (curatedDatasets.length ? curatedDatasets : datasets)
     : (liveDatasets.length ? liveDatasets : datasets);
+
+  const displayDatasets = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return baseDatasets;
+    return baseDatasets.filter(d =>
+      (d.name || '').toLowerCase().includes(q) ||
+      (d.evaluation_metric || '').toLowerCase().includes(q) ||
+      (d.models || []).some(m => (m.model || '').toLowerCase().includes(q))
+    );
+  }, [baseDatasets, query]);
 
   const rankBadge = (rank) => {
     if (rank === 1) return <span title="1st place" className="mr-1">🥇</span>;
@@ -1045,41 +1056,119 @@ const Leaderboard = () => {
       <header className="w-full max-w-4xl mt-10 pt-4 text-center relative">
         {/* Subtle glow behind headline */}
         <div className="absolute inset-0 -top-10 flex items-center justify-center pointer-events-none">
-          <div className="w-96 h-40 rounded-full bg-[#defe47]/[0.04] blur-3xl" />
+          <div className="w-96 h-40 rounded-full bg-[#defe47]/[0.05] blur-3xl" />
         </div>
         <div className="relative">
-          {/* <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#28b2fb]/[0.08] border border-[#28b2fb]/20 text-xs uppercase tracking-[0.18em] text-[#28b2fb] mb-4 font-medium">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#28b2fb]/[0.08] border border-[#28b2fb]/20 text-xs uppercase tracking-[0.18em] text-[#28b2fb] mb-4 font-medium">
             <span className="w-1.5 h-1.5 rounded-full bg-[#28b2fb] animate-pulse" />
             Anote Evaluations
-          </div> */}
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight bg-white bg-clip-text text-transparent leading-tight">
+          </div>
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight bg-gradient-to-r from-white via-gray-100 to-gray-300 bg-clip-text text-transparent leading-tight">
             Model Leaderboard
           </h1>
           <p className="mt-4 text-gray-400 text-sm md:text-base max-w-lg mx-auto leading-relaxed">
-            Compare models, submit results, and track model performance.
+            Transparent, community-driven benchmarks for AI models. Compare performance, submit results, and explore evaluation datasets.
           </p>
+
+          {/* CTA buttons */}
+          <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
+            <button
+              onClick={() => navigate(submittoleaderboardPath)}
+              className="px-5 py-2.5 rounded-xl bg-[#defe47] text-black text-sm font-semibold hover:bg-[#eeff5a] active:scale-95 transition-all shadow-lg shadow-[#defe47]/10"
+            >
+              Submit a Model
+            </button>
+            <button
+              onClick={() => navigate(addDatasetPath)}
+              className="px-5 py-2.5 rounded-xl border border-gray-700/80 text-gray-300 text-sm font-medium hover:border-[#defe47]/40 hover:text-[#defe47] active:scale-95 transition-all"
+            >
+              Add Dataset
+            </button>
+            <button
+              onClick={() => navigate(csvBenchmarksPath)}
+              className="px-5 py-2.5 rounded-xl border border-gray-700/80 text-gray-300 text-sm font-medium hover:border-[#28b2fb]/40 hover:text-[#28b2fb] active:scale-95 transition-all"
+            >
+              Run Benchmarks
+            </button>
+          </div>
         </div>
       </header>
 
-
-      {/* ── Loading / error ── */}
-      {loading && (
-        <div className="mt-16 text-gray-400 flex items-center gap-2.5 text-sm">
-          <svg className="animate-spin w-4 h-4 text-[#28b2fb]" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
-          </svg>
-          Loading leaderboard…
+      {/* ── Controls: view toggle + search ── */}
+      <div className="w-full max-w-7xl mt-10 flex flex-col sm:flex-row items-center justify-between gap-4">
+        {/* View toggle */}
+        <div className="flex items-center gap-1 p-1 bg-[#0d1421] rounded-xl border border-gray-800/80">
+          {[
+            { key: 'live', label: 'Live Results' },
+            { key: 'curated', label: 'Curated' },
+          ].map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setViewMode(key)}
+              className={[
+                "px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-150",
+                viewMode === key
+                  ? "bg-[#defe47] text-black shadow-sm"
+                  : "text-gray-400 hover:text-gray-100"
+              ].join(' ')}
+            >
+              {label}
+            </button>
+          ))}
         </div>
-      )}
+
+        {/* Search */}
+        <div className="relative w-full sm:max-w-xs">
+          <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 111 11a6 6 0 0116 0z" />
+          </svg>
+          <input
+            type="text"
+            placeholder="Filter by dataset or model…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 rounded-xl bg-[#0d1421] border border-gray-800/80 text-gray-200 placeholder-gray-600 focus:outline-none focus:border-[#28b2fb]/40 text-sm transition-colors"
+          />
+        </div>
+      </div>
+
+      {/* ── Error ── */}
       {error && (
-        <div className="mt-10 text-red-400 text-sm bg-red-900/20 border border-red-800/40 rounded-lg px-4 py-2.5">
+        <div className="mt-6 text-red-400 text-sm bg-red-900/20 border border-red-800/40 rounded-lg px-4 py-2.5 w-full max-w-7xl">
           {error}
         </div>
       )}
 
       {/* ── Dataset cards ── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6 mt-10 w-full max-w-7xl">
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6 mt-6 w-full max-w-7xl">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="bg-[#0d1421] rounded-2xl border border-gray-800/80 animate-pulse overflow-hidden">
+              <div className="px-5 pt-5 pb-4 border-b border-gray-800/60">
+                <div className="h-4 bg-gray-800/80 rounded-lg w-2/3 mb-3" />
+                <div className="h-3 bg-gray-800/60 rounded-full w-1/4" />
+              </div>
+              <div className="px-5 py-3 border-b border-gray-800/40">
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="h-2.5 bg-gray-800/60 rounded" />
+                  <div className="h-2.5 bg-gray-800/60 rounded" />
+                  <div className="h-2.5 bg-gray-800/60 rounded" />
+                </div>
+              </div>
+              {[...Array(4)].map((__, j) => (
+                <div key={j} className="px-5 py-3 border-b border-gray-800/30">
+                  <div className="grid grid-cols-[3rem_1fr_5rem] gap-4 items-center">
+                    <div className="h-5 w-5 bg-gray-800/70 rounded-full" />
+                    <div className="h-3 bg-gray-800/60 rounded w-3/4" />
+                    <div className="h-3 bg-gray-800/60 rounded w-full" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      ) : (
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6 mt-6 w-full max-w-7xl">
         {displayDatasets.map((dataset, index) => (
           <div
             key={index}
@@ -1175,6 +1264,14 @@ const Leaderboard = () => {
           </div>
         ))}
       </div>
+      )}
+
+      {/* ── Empty state ── */}
+      {!loading && displayDatasets.length === 0 && (
+        <div className="mt-10 text-gray-400 bg-[#0d1421] border border-gray-800/80 p-6 rounded-xl w-full max-w-7xl text-center text-sm">
+          {query ? `No datasets match "${query}".` : 'No leaderboard data yet. Add a dataset or submit model outputs to populate this view.'}
+        </div>
+      )}
 
       {/* ── FAQs ── */}
       <div className="w-full max-w-3xl mx-auto mt-24 px-2">

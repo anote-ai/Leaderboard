@@ -20,7 +20,7 @@ function Footer() {
   ];
 
   return (
-    <footer className="bg-gray-800 border-t border-white/[0.05]">
+    <footer className="bg-[#080d16] border-t border-white/[0.05]">
       <div className="max-w-7xl mx-auto px-6 py-12">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
 
@@ -29,14 +29,18 @@ function Footer() {
             <div className="flex items-center gap-2.5 mb-3">
               <img src="/logo.png" alt="Anote" className="h-8 w-8" loading="lazy" />
               <span className="text-lg font-bold text-white">Anote</span>
+              <span className="text-xs text-gray-600 font-medium">Leaderboard</span>
             </div>
-            <p className="text-sm text-gray-400 max-w-xs leading-relaxed mb-4">
+            <p className="text-sm text-gray-500 max-w-xs leading-relaxed mb-4">
               Transparent, community-driven benchmarking for AI models. Compare, submit, and track performance across diverse evaluation datasets.
             </p>
             <a
               href="mailto:nvidra@anote.ai"
-              className="text-sm text-[#28b2fb] hover:text-[#defe47] transition-colors"
+              className="inline-flex items-center gap-1.5 text-sm text-[#28b2fb] hover:text-[#defe47] transition-colors"
             >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
               nvidra@anote.ai
             </a>
           </div>
@@ -52,7 +56,7 @@ function Footer() {
                   <button
                     type="button"
                     onClick={() => navigate(path)}
-                    className="text-sm text-gray-400 hover:text-white transition-colors"
+                    className="text-sm text-gray-500 hover:text-white transition-colors"
                   >
                     {label}
                   </button>
@@ -72,7 +76,7 @@ function Footer() {
                   href="https://anote.ai"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-sm text-gray-400 hover:text-white transition-colors"
+                  className="text-sm text-gray-500 hover:text-white transition-colors"
                 >
                   Anote.ai →
                 </a>
@@ -82,7 +86,7 @@ function Footer() {
                   href="https://anote-ai.medium.com/"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-sm text-gray-400 hover:text-white transition-colors"
+                  className="text-sm text-gray-500 hover:text-white transition-colors"
                 >
                   Blog
                 </a>
@@ -92,7 +96,7 @@ function Footer() {
                   href="https://www.linkedin.com/company/anote-ai"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-sm text-gray-400 hover:text-white transition-colors"
+                  className="text-sm text-gray-500 hover:text-white transition-colors"
                 >
                   LinkedIn
                 </a>
@@ -102,7 +106,7 @@ function Footer() {
                   href="https://docs.anote.ai"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-sm text-gray-400 hover:text-white transition-colors"
+                  className="text-sm text-gray-500 hover:text-white transition-colors"
                 >
                   Documentation
                 </a>
@@ -113,14 +117,14 @@ function Footer() {
         </div>
 
         {/* Bottom bar */}
-        <div className="mt-10 pt-6 border-t border-gray-800/50 flex flex-col sm:flex-row justify-between items-center gap-3">
-          <p className="text-xs text-gray-500">© {year} Anote. All rights reserved.</p>
+        <div className="mt-10 pt-6 border-t border-gray-800/40 flex flex-col sm:flex-row justify-between items-center gap-3">
+          <p className="text-xs text-gray-600">© {year} Anote AI. All rights reserved.</p>
           <div className="flex items-center gap-4">
             <a
               href="https://anote.ai/privacypolicy"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
+              className="text-xs text-gray-600 hover:text-gray-300 transition-colors"
             >
               Privacy Policy
             </a>
@@ -131,16 +135,16 @@ function Footer() {
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Medium"
-                className="text-gray-500 hover:text-white transition-colors"
+                className="text-gray-600 hover:text-white transition-colors"
               >
-                <img className="w-4 h-4 opacity-60 hover:opacity-100 transition-opacity" src="/landing_page_assets/social/medium.svg" alt="Medium" loading="lazy" />
+                <img className="w-4 h-4 opacity-50 hover:opacity-100 transition-opacity" src="/landing_page_assets/social/medium.svg" alt="Medium" loading="lazy" />
               </a>
               <a
                 href="https://www.linkedin.com/company/anote-ai"
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="LinkedIn"
-                className="text-gray-500 hover:text-[#28b2fb] transition-colors"
+                className="text-gray-600 hover:text-[#28b2fb] transition-colors"
               >
                 <svg fill="currentColor" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="0" className="w-4 h-4" viewBox="0 0 24 24">
                   <path stroke="none" d="M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-2-2 2 2 0 00-2 2v7h-4v-7a6 6 0 016-6zM2 9h4v12H2z" />
