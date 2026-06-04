@@ -53,6 +53,34 @@ describe("submission format helpers", () => {
     });
   });
 
+  test("normalizeParsedSubmissionJson accepts predictions wrapper", () => {
+    const parsed = normalizeParsedSubmissionJson({
+      predictions: [
+        { id: 9, output: "A" },
+        { id: 10, prediction: "B" },
+      ],
+    });
+
+    expect(parsed).toEqual({
+      modelResults: ["A", "B"],
+      sentenceIds: [9, 10],
+    });
+  });
+
+  test("normalizeParsedSubmissionJson accepts outputs wrapper", () => {
+    const parsed = normalizeParsedSubmissionJson({
+      outputs: [
+        { sentence_id: "2", answer: "supported" },
+        { sentence_id: "3", result: "refuted" },
+      ],
+    });
+
+    expect(parsed).toEqual({
+      modelResults: ["supported", "refuted"],
+      sentenceIds: [2, 3],
+    });
+  });
+
   test("normalizeParsedSubmissionJson accepts submit_model body shape", () => {
     const parsed = normalizeParsedSubmissionJson({
       modelResults: ["yes", "no"],

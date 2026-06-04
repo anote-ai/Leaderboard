@@ -67,9 +67,12 @@ export const buildQuestionsExport = ({
 export const normalizeParsedSubmissionJson = (parsed) => {
   let modelResults = [];
   let ids = [];
+  const rows = Array.isArray(parsed)
+    ? parsed
+    : (Array.isArray(parsed?.predictions) ? parsed.predictions : parsed?.outputs);
 
-  if (Array.isArray(parsed)) {
-    parsed.forEach((item, idx) => {
+  if (Array.isArray(rows)) {
+    rows.forEach((item, idx) => {
       const output = item.output ?? item.prediction ?? item.translation ?? item.answer ?? item.result ?? "";
       const rawId = item.id ?? item.sentence_id ?? idx;
       const numId = Number(rawId);
@@ -80,7 +83,7 @@ export const normalizeParsedSubmissionJson = (parsed) => {
     modelResults = parsed.modelResults;
     ids = parsed.sentence_ids;
   } else {
-    throw new Error("Unrecognized JSON format. Expected array of {id, output} or {modelResults, sentence_ids}.");
+    throw new Error("Unrecognized JSON format. Expected array of {id, output}, {predictions: [...]}, {outputs: [...]}, or {modelResults, sentence_ids}.");
   }
 
   return { modelResults, sentenceIds: ids };
