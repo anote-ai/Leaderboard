@@ -6,7 +6,7 @@ export function checkAndUpdateSchema(initialSchema, store) {
     const persistedSchemaHash = localStorage.getItem('schemaHash');
 
 
-    if (initialSchemaHash != persistedSchemaHash) {
+    if (initialSchemaHash !== persistedSchemaHash) {
         setTimeout(() => {
             persistStore(store).purge();  // uncomment this if you want to reset the state
         }, 0);

@@ -1,21 +1,15 @@
-import React, { useRef, useState, useEffect } from "react";
+/* eslint-disable no-unused-vars */
+
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import Papa from "papaparse";
-import { Modal } from "flowbite-react";
-import { FaDatabase } from "react-icons/fa";
 
 // import { loadDatasets, useDatasets } from "../../redux/DatasetSlice";
 // import { SelectStyles } from "../../styles/SelectStyles";
 
 import {
-  FlowPage,
   NLPTask,
-  NLPTaskMap,
   FlowType,
-  NLPTaskFileName,
-  FlowTypeFileName,
 } from "../../constants/DbEnums";
-import { formatMetricsSummary } from "../../utils/formatMetricsSummary";
 import { getLeaderboardJwt } from "../../utils/leaderboardAuth";
 import {
   buildQuestionsExport,
@@ -88,27 +82,14 @@ const AllowedOutputsPanel = ({ allowedOutputs = [] }) => {
 
 const SubmitToLeaderboard = ({
   flowType = FlowType.PREDICT,
-  // Hooks to navigate out or set page states
-  setPageNumber,
-  backHome,
-
-  // Hooks related to CSV data
-  setLocalCsvData,
-  setHasMoreRows,
-
+  
+  
   // Hooks related to dataset info
   nameToGive,
-  setNameToGive,
-  trainingFlow,
-  setTrainingFlow,
   csvFileName,
-  setCsvFileName,
   documentBankFileNames,
-  setDocumentBankFileNames,
   assignedTaskType,
-  setAssignedTaskType,
   selectedDatasetId,
-  setSelectedDatasetId,
 }) => {
   const navigate = useNavigate();
   // ---------- Leaderboard submission state ----------
@@ -677,8 +658,6 @@ const SubmitToLeaderboard = ({
   };
 
   // ---------- Existing local states ----------
-  const fileInputRefCsv = useRef(null);
-  const fileInputRefDocumentBanks = useRef(null);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTaskType, setSelectedTaskType] = useState("");
@@ -701,7 +680,6 @@ const SubmitToLeaderboard = ({
   }, []);
 
   // const datasets = useDatasets();
-  const datasets = [];
 
   // ---------- SHOW/HIDE Conditionals (ported from snippet) ----------
   let showDocumentNameOrRawTextToggle = false;
@@ -717,11 +695,6 @@ const SubmitToLeaderboard = ({
     }
   }
 
-  const showLockedTaskType = flowType === FlowType.PREDICT;
-  const showChooseTrainingFlow = flowType === FlowType.TRAIN;
-  const showChooseDataset = flowType === FlowType.PREDICT;
-  const showUploadDocumentBank =
-    assignedTaskType === NLPTask.CHATBOT && flowType !== FlowType.EVALUATE;
 
   // (From snippet: Next button enabling logic)
   let enableNextButton = false;
@@ -763,197 +736,28 @@ const SubmitToLeaderboard = ({
   // Legacy user form handlers removed (Google Form flow deprecated)
 
   // ---------- CSV & Document Bank Upload Handlers ----------
-  const handleCsvFileUpload = async (event) => {
-    if (event.target.files.length > 0) {
-      const file = event.target.files[0];
-      if (file) {
-        setCsvFileName(file);
-        Papa.parse(file, {
-          header: true,
-          complete: function (results) {
-            const maxRows = 100;
-            const limitedRows = results.data.slice(0, maxRows);
-            const moreRowsFlag = results.data.length > maxRows;
-            setHasMoreRows(moreRowsFlag);
-            setLocalCsvData({
-              headers: Object.keys(results.data[0]),
-              rows: limitedRows,
-            });
-          },
-        });
-      }
-    }
-  };
 
-  const handleDropCsv = async (event) => {
-    event.preventDefault();
-    const file = event.dataTransfer.files[0];
-    if (file) {
-      setCsvFileName(file);
-      Papa.parse(file, {
-        header: true,
-        complete: function (results) {
-          const maxRows = 100;
-          const limitedRows = results.data.slice(0, maxRows);
-          const moreRowsFlag = results.data.length > maxRows;
-          setHasMoreRows(moreRowsFlag);
-          setLocalCsvData({
-            headers: Object.keys(results.data[0]),
-            rows: limitedRows,
-          });
-        },
-      });
-    }
-  };
 
-  const handleDocumentBankFileUpload = (event) => {
-    const files = Array.from(event.target.files);
-    if (files.length > 0) {
-      setDocumentBankFileNames(files);
-    }
-  };
 
-  const handleDropDocumentBanks = (event) => {
-    event.preventDefault();
-    const files = Array.from(event.dataTransfer.files);
-    setDocumentBankFileNames(files);
-  };
 
   // ---------- Drag Over/Enter/Leave for CSV and Document bank ----------
-  const handleDragOver = (event) => {
-    event.preventDefault();
-  };
-  const handleDragEnterCsv = (event) => {
-    event.preventDefault();
-    setIsCsvDragActive(true);
-  };
-  const handleDragLeaveCsv = (event) => {
-    event.preventDefault();
-    setIsCsvDragActive(false);
-  };
-  const handleDragEnterDocumentBanks = (event) => {
-    event.preventDefault();
-    setIsDocBankDragActive(true);
-  };
-  const handleDragLeaveDocumentBanks = (event) => {
-    event.preventDefault();
-    setIsDocBankDragActive(false);
-  };
 
   // ---------- Download Example CSV (if task type selected) ----------
-  const handleDownloadExampleCsv = () => {
-    if (assignedTaskType == null) {
-      alert("Please select a task type before downloading the example CSV.");
-      return;
-    }
-    const fileName = `${FlowTypeFileName[flowType]}_${NLPTaskFileName[assignedTaskType]}.csv`;
-    const filePath = `/example_csvs/${fileName}`;
-    const link = document.createElement("a");
-    link.href = filePath;
-    link.download = fileName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
 
   // ---------- Benchmark Dataset Modal & Options ----------
-  const connectorOptions = [
-    { value: "Bizbench", label: "Bizbench", taskType: "Chatbot" },
-    { value: "Financebench", label: "Financebench", taskType: "Chatbot" },
-    { value: "Emotion", label: "Emotion", taskType: "Classification" },
-    { value: "Finance", label: "Finance", taskType: "Classification" },
-    { value: "MedQuAD", label: "MedQuAD", taskType: "Chatbot" },
-    { value: "PubMed", label: "PubMed", taskType: "Classification" },
-    { value: "QuoraQuAD", label: "QuoraQuAD", taskType: "Chatbot" },
-    { value: "RagInstruct", label: "RagInstruct", taskType: "Chatbot" },
-    { value: "ArcChallenge", label: "ArcChallenge", taskType: "Miscellaneous" },
-    { value: "MMLU", label: "MMLU", taskType: "Miscellaneous" },
-    { value: "Commonsense", label: "Commonsense", taskType: "Miscellaneous" },
-    { value: "Geolocation", label: "Geolocation", taskType: "Miscellaneous" },
-  ];
 
-  const filteredOptions = connectorOptions.filter(
-    (option) => selectedTaskType === "" || option.taskType === selectedTaskType
-  );
 
   // For the <Select> dropdown, we’ll just use the same list (ignoring taskType filtering):
-  const connectorOptionsForSelect = connectorOptions.map((o) => ({
-    value: o.value,
-    label: o.label,
-  }));
 
-  const handleOpenModal = () => setIsModalOpen(true);
   const handleCloseModal = () => setIsModalOpen(false);
 
-  const handleDatasetSelect = async (datasetName) => {
-    // Simulate a dataset CSV download
-    const fileName = `${datasetName}.csv`;
-    const filePath = `/benchmark_csvs/${datasetName}.csv`;
-    const link = document.createElement("a");
-    link.href = filePath;
-    link.download = fileName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    handleCloseModal();
-  };
 
-  const onConnectorCardClick = (value) => {
-    handleDatasetSelect(value);
-  };
 
   // For the <Select> onChange
-  const onBenchmarkSelectChange = (selectedOption) => {
-    // Store the dataset ID in local or global state
-    setSelectedDatasetId(selectedOption.value);
-    // Also set assignedTaskType based on match
-    const found = connectorOptions.find((o) => o.value === selectedOption.value);
-    if (found) {
-      setSelectedTaskType(found.taskType);
-    }
-  };
 
   // ---------- Task Selector Component (if needed) ----------
-  const taskSelectorComponent = (
-    <div>
-      <div>{showLockedTaskType ? "Task Type" : "Choose a Task Type"}</div>
-      <div className="w-full flex flex-row items-center bg-gray-800 rounded-full py-0 mt-2">
-        {Object.entries(NLPTask).map(([key, value]) => (
-          <div
-            key={value}
-            className={`py-2 w-1/4 text-center cursor-pointer ${
-              assignedTaskType === value
-                ? "bg-gray-900 border border-blue-300 rounded-full"
-                : ""
-            }`}
-            onClick={() => {
-              // Only allow changing if not locked
-              if (!showLockedTaskType) {
-                setAssignedTaskType(value);
-              }
-            }}
-          >
-            {NLPTaskMap[value]}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
 
   // ---------- Render Document Bank File Names ----------
-  const renderFileNames = () => {
-    if (documentBankFileNames.length > 0) {
-      return (
-        <div className="text-white mt-2 max-h-32 overflow-y-auto">
-          {documentBankFileNames.map((file, index) => (
-            <div key={index}>{file.name}</div>
-          ))}
-        </div>
-      );
-    } else {
-      return <div className="text-white mt-2">No file selected</div>;
-    }
-  };
 
   // ---------- Form Submission (final) ----------
   // const handleSubmit = async (e) => {

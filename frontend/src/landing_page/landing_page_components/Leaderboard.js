@@ -1,9 +1,8 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import IconButton from "@mui/material/IconButton";
 import Skeleton from "@mui/material/Skeleton";
-import { addDatasetPath, csvBenchmarksPath, evaluationsPath, submittoleaderboardPath, compareModelsPath } from "../../constants/RouteConstants";
+import { submittoleaderboardPath, compareModelsPath } from "../../constants/RouteConstants";
 import { useNavigate } from "react-router-dom";
-import { formatMetricsSummary } from "../../utils/formatMetricsSummary";
 
 function humanizeMetricKey(metric) {
   if (!metric || String(metric).trim() === "") return "";
@@ -190,6 +189,7 @@ const Leaderboard = () => {
   const [domainFilter, setDomainFilter] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [curatedDatasets, setCuratedDatasets] = useState([]);
+  // eslint-disable-next-line no-unused-vars
   const [viewMode, setViewMode] = useState('live'); // 'live' | 'curated'
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");

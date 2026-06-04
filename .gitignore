@@ -14,3 +14,9 @@ venv/
 # Local SQLite database
 leaderboard.db
 backend/leaderboard.db
+
+# Local package-manager artifacts
+.npm-cache/
+.npm-logs/
+node_modules.broken-*/
+**/node_modules.broken-*/

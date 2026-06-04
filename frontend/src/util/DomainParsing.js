@@ -46,14 +46,14 @@ export function GetFaqsUrl() {
         realDomain = "";
         for (var i = 1; i < hostnameParts.length; i++) {
           realDomain += hostnameParts[i];
-          if (i != hostnameParts.length - 1) {
+          if (i !== hostnameParts.length - 1) {
             realDomain += ".";
           }
         }
     }
 
     var maybePort = window.location.port;
-    if (maybePort.length != 0) {
+    if (maybePort.length !== 0) {
         maybePort = ":" + maybePort;
     }
 
@@ -71,14 +71,14 @@ export function GetHomeUrl() {
       realDomain = "";
       for (var i = 1; i < hostnameParts.length; i++) {
         realDomain += hostnameParts[i];
-        if (i != hostnameParts.length - 1) {
+        if (i !== hostnameParts.length - 1) {
           realDomain += ".";
         }
       }
   }
 
   var maybePort = window.location.port;
-  if (maybePort.length != 0) {
+  if (maybePort.length !== 0) {
       maybePort = ":" + maybePort;
   }
 

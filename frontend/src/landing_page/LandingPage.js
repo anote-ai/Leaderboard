@@ -10,7 +10,6 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import Footer from "./landing_page_components/Footer";
 import { Helmet } from "react-helmet";
 import { useState, useEffect } from "react";
-import { useDispatch } from "react-redux";
 import { useLocation } from "react-router-dom";
 import { robotHeader } from "../util/RobotHeader";
 import Leaderboard from "./landing_page_components/Leaderboard";
@@ -21,11 +20,10 @@ import RequestDataset from "./landing_page_components/RequestDataset";
 import AdminDatasetRequests from "./landing_page_components/AdminDatasetRequests";
 import AddDataset from "./landing_page_components/AddDataset";
 import DatasetDetails from "./landing_page_components/DatasetDetails";
-import { submittoleaderboardPath, mySubmissionsPath, adminLeaderboardPath, adminSubmissionsPath, adminDatasetRequestsPath, requestDatasetPath, evaluationsPath, csvBenchmarksPath, addDatasetPath, loginPath, oauthCallbackPath, createLeaderboardPath, compareModelsPath } from "../constants/RouteConstants";
+import { submittoleaderboardPath, mySubmissionsPath, adminLeaderboardPath, adminSubmissionsPath, adminDatasetRequestsPath, requestDatasetPath, csvBenchmarksPath, addDatasetPath, loginPath, oauthCallbackPath, createLeaderboardPath, compareModelsPath } from "../constants/RouteConstants";
 import MySubmissions from "./landing_page_components/MySubmissions";
 import ModelComparison from "./landing_page_components/ModelComparison";
 import HeaderBar from "./landing_page_components/HeaderBar";
-import CsvBenchmarksDemo from "./landing_page_components/CsvBenchmarksDemo";
 import AuthGuard from "./landing_page_components/AuthGuard";
 import LoginPage from "./landing_page_components/LoginPage";
 import OAuthCallback from "./landing_page_components/OAuthCallback";
@@ -33,7 +31,7 @@ import CreateLeaderboardFromHF from "./landing_page_components/CreateLeaderboard
 
 function LandingPage() {
   const location = useLocation();
-  let dispatch = useDispatch();
+
 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 

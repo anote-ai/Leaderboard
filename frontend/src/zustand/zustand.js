@@ -1,4 +1,4 @@
-import { tabClasses } from '@mui/material'
+
 import { create } from 'zustand'
 
 export const useGlobalStore = create((set) => ({

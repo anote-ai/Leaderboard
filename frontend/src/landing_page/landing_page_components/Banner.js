@@ -108,17 +108,16 @@ function Banner({ open }) {
             icon={faArrowRight}
           />
         </a> */}
-        <a
+        <button
           onClick={() => {
             window.open("https://anote.ai/palebluedot", "_blank");
           }}
-          className="text-white text-xs md:text-sm lg:text-base lg:font-medium m-0"
-          style={{ cursor: "pointer" }}
+          className="text-white text-xs md:text-sm lg:text-base lg:font-medium m-0 bg-none border-none cursor-pointer"
         >
           Join Thousands of AI Leaders for our Gen AI Research and Development Launch
-        </a>
-        <a
-          className="text-[#defe47] text-xs md:text-sm lg:text-base ml-4 hover:underline cursor-pointer"
+        </button>
+        <button
+          className="text-[#defe47] text-xs md:text-sm lg:text-base ml-4 hover:underline cursor-pointer bg-none border-none"
           onClick={() => {
             window.open(window.location["origin"] + "/palebluedot", "_blank");
           }}
@@ -128,7 +127,7 @@ function Banner({ open }) {
             className="ml-3 text-[#defe47]"
             icon={faArrowRight}
           />
-        </a>
+        </button>
       </div>
     </div>
   );

@@ -65,7 +65,6 @@ export const SelectStylesLight = {
     height: '40px',
     backgroundColor: '#D9D9D9',
     borderColor: 'black',
-    border: 'black',
     boxShadow: "none",
     border: state.isFocused ? "1px solid #1f2225" : "none",
     color: 'black',
