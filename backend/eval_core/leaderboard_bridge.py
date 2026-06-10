@@ -192,6 +192,57 @@ def _bootstrap_ci(
     return scores[lo], scores[min(hi, len(scores) - 1)]
 
 
+_BINARY_CORRECT_TASKS = frozenset({
+    "text_classification",
+    "named_entity_recognition",
+    "document_qa",
+    "line_qa",
+    "multiple_choice_qa",
+    "math_reasoning",
+    "natural_language_inference",
+    "fact_verification",
+    "semantic_similarity",
+    "code_generation",
+    "summarization",
+    "retrieval",
+    "dialogue",
+})
+
+
+def _build_item_results(
+    gt: List[Dict[str, Any]],
+    preds: List[Dict[str, Any]],
+    task_norm: str,
+) -> List[Dict[str, Any]]:
+    """Return per-example {id, ground_truth, prediction, correct} rows."""
+    pred_map = {p["id"]: p["prediction"] for p in preds}
+    can_score = task_norm in _BINARY_CORRECT_TASKS
+    items: List[Dict[str, Any]] = []
+    for g in gt:
+        gid = g["id"]
+        answer = g.get("answer")
+        pred = pred_map.get(gid)
+        if can_score and pred is not None:
+            if isinstance(answer, list):
+                acceptable = [str(a).strip().lower() for a in answer if a is not None]
+            else:
+                acceptable = [str(answer).strip().lower()]
+            pred_norm = (
+                str(pred[0]).strip().lower() if isinstance(pred, list) and pred
+                else str(pred).strip().lower()
+            )
+            correct: Optional[bool] = pred_norm in acceptable
+        else:
+            correct = None
+        items.append({
+            "id": gid,
+            "ground_truth": answer,
+            "prediction": pred,
+            "correct": correct,
+        })
+    return items
+
+
 def run_personal_eval(
     task_type_raw: Optional[str],
     evaluation_metric: Optional[str],
@@ -221,6 +272,7 @@ def run_personal_eval(
         detailed["ci_low"] = round(ci[0], 6)
         detailed["ci_high"] = round(ci[1], 6)
         detailed["ci_level"] = 0.95
+    detailed["item_results"] = _build_item_results(gt, preds, tt)
     return float(score), detailed
 
 
