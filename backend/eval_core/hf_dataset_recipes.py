@@ -234,7 +234,7 @@ def load_conll2003_ground_truth(
     split: str,
     limit: Optional[int] = None,
 ) -> List[Dict[str, Any]]:
-    ds = _load_dataset(CONLL_HF_ID, split=split, trust_remote_code=True)
+    ds = _load_dataset(CONLL_HF_ID, split=split)
     ner_feature = ds.features["ner_tags"]
     tag_names = list(ner_feature.feature.names)
     n = len(ds)

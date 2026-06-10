@@ -164,7 +164,7 @@ def _load_conll2003(limit: int = 500) -> None:
     """CoNLL-2003 English NER validation split."""
     name = "CoNLL-2003 NER"
     print(f"\nLoading {name}…")
-    ds = load_dataset("conll2003", split="validation", trust_remote_code=True)
+    ds = load_dataset("conll2003", split="validation")
     ner_feature = ds.features["ner_tags"]
     tag_names = list(ner_feature.feature.names)
 
