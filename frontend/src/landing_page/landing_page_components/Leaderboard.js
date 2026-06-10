@@ -1963,12 +1963,17 @@ const Leaderboard = () => {
                           </div>
                         </td>
                         <td className="px-2 py-2.5 min-w-[9rem] max-w-xs">
-                          <div
-                            className={["font-medium truncate", isTop ? "text-white" : "text-gray-300"].join(" ")}
+                          <button
+                            type="button"
+                            className={[
+                              "font-medium truncate max-w-full text-left hover:text-[#defe47] hover:underline",
+                              isTop ? "text-white" : "text-gray-300",
+                            ].join(" ")}
                             title={model.model}
+                            onClick={() => navigate(`/model/${encodeURIComponent(model.model)}`)}
                           >
                             {model.model}
-                          </div>
+                          </button>
                         </td>
                         <td className="px-5 py-2.5 text-right">
                           <span

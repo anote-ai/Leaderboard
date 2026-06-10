@@ -184,7 +184,15 @@ const DatasetDetails = () => {
                   </div>
                   {data.top_models.map((m, i) => (
                     <div key={i} className="grid grid-cols-3 text-center px-3 py-2 text-white text-sm">
-                      <div className="truncate" title={m.model}>{m.model}</div>
+                      <div className="truncate" title={m.model}>
+                        <button
+                          type="button"
+                          className="truncate max-w-full text-[#defe47] hover:underline"
+                          onClick={() => navigate(`/model/${encodeURIComponent(m.model)}`)}
+                        >
+                          {m.model}
+                        </button>
+                      </div>
                       <div className="tabular-nums">
                         {typeof m.score === 'number' ? (m.score < 1 ? m.score.toFixed(4) : m.score.toFixed(2)) : m.score}
                       </div>
