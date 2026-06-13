@@ -12,3 +12,4 @@ export const csvBenchmarksPath = "/benchmarks";
 export const addDatasetPath = "/datasets/new";
 export const createLeaderboardPath = "/create-leaderboard";
 export const compareModelsPath = "/compare";
+export const modelCardPath = "/model/:name";

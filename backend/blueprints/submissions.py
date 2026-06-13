@@ -784,6 +784,94 @@ def submission_detail(submission_id: int):
     })
 
 
+@bp.get("/public/submissions/<int:submission_id>/examples")
+def submission_examples(submission_id: int):
+    """Per-example prediction results for a submission.
+
+    Query params:
+      filter  = all | correct | wrong   (default: all)
+      offset  = int (default 0)
+      limit   = int 1–500 (default 100)
+    """
+    sub, err = _require_submission_owner(request, submission_id)
+    if err:
+        return err
+
+    filter_by = request.args.get("filter", "all").lower()
+    if filter_by not in ("all", "correct", "wrong"):
+        return jsonify({"success": False, "error": "filter must be all, correct, or wrong"}), 400
+    try:
+        offset = max(0, int(request.args.get("offset", 0)))
+        limit = min(500, max(1, int(request.args.get("limit", 100))))
+    except (ValueError, TypeError):
+        return jsonify({"success": False, "error": "offset and limit must be integers"}), 400
+
+    conn, cursor = get_db_connection()
+    if conn and cursor:
+        try:
+            try:
+                cursor.execute(
+                    "SELECT ms.submitter_id, ms.submitted_by, er.evaluation_details "
+                    "FROM model_submissions ms "
+                    "JOIN evaluation_results er ON er.model_submission_id = ms.id "
+                    "WHERE ms.id = %s",
+                    (submission_id,),
+                )
+            except Exception:
+                cursor.execute(
+                    "SELECT ms.submitted_by, er.evaluation_details "
+                    "FROM model_submissions ms "
+                    "JOIN evaluation_results er ON er.model_submission_id = ms.id "
+                    "WHERE ms.id = %s",
+                    (submission_id,),
+                )
+            r = cursor.fetchone()
+        finally:
+            try:
+                cursor.close()
+                conn.close()
+            except Exception:
+                pass
+        if not r:
+            return jsonify({"success": False, "error": "Not found"}), 404
+        owner = r.get("submitter_id") or r.get("submitted_by") or ""
+        if owner != sub:
+            return jsonify({"success": False, "error": "Forbidden"}), 403
+        raw_det = r.get("evaluation_details") or "{}"
+    else:
+        sub_row = next((s for s in _STORE["submissions"] if s["id"] == submission_id), None)
+        if not sub_row:
+            return jsonify({"success": False, "error": "Not found"}), 404
+        owner = sub_row.get("submitter_id") or sub_row.get("submitted_by")
+        if owner != sub:
+            return jsonify({"success": False, "error": "Forbidden"}), 403
+        ev = next((e for e in _STORE["evaluations"] if e["submission_id"] == submission_id), None)
+        raw_det = (ev or {}).get("evaluation_details") or "{}"
+
+    try:
+        det = json.loads(raw_det) if isinstance(raw_det, str) else (raw_det or {})
+    except Exception:
+        det = {}
+
+    all_items: List[Dict[str, Any]] = det.get("item_results") or []
+    if filter_by == "correct":
+        all_items = [it for it in all_items if it.get("correct") is True]
+    elif filter_by == "wrong":
+        all_items = [it for it in all_items if it.get("correct") is False]
+
+    total = len(all_items)
+    page = all_items[offset: offset + limit]
+    return jsonify({
+        "success": True,
+        "submission_id": submission_id,
+        "filter": filter_by,
+        "total": total,
+        "offset": offset,
+        "limit": limit,
+        "examples": page,
+    })
+
+
 def _require_submission_owner(request, submission_id: int):
     """Return (sub, error_response) — sub is the authenticated identity, error_response is None on success."""
     sub = jwt_sub_from_request(request)

@@ -1,3 +1,5 @@
+from pathlib import Path
+
 try:
     import app as app_module
     from blueprints import auth as auth_module
@@ -7,6 +9,7 @@ except ImportError:  # pragma: no cover
 
 
 app = app_module.app
+BACKEND_DIR = Path(__file__).resolve().parents[1]
 
 
 def reset_state():
@@ -45,6 +48,17 @@ def test_run_csv_benchmarks_rejects_malformed_sample_size(monkeypatch):
     assert response.status_code == 400
     assert response.is_json
     assert response.get_json()["error"] == "sample_size must be an integer"
+
+
+def test_hf_dataset_loading_does_not_enable_remote_code_by_default():
+    checked_files = [
+        BACKEND_DIR / "eval_core" / "hf_dataset_recipes.py",
+        BACKEND_DIR / "examples" / "seed_hf_benchmarks.py",
+    ]
+
+    for path in checked_files:
+        source = path.read_text(encoding="utf-8")
+        assert "trust_remote_code=True" not in source
 
 
 def test_submit_model_db_write_failure_does_not_fallback_to_memory(monkeypatch):
