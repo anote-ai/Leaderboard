@@ -149,6 +149,7 @@ function groupLeaderboardEntries(entries) {
       updated: e.submitted_at ? new Date(e.submitted_at).toLocaleDateString() : "",
       primary_metric: e.primary_metric,
       detailed_scores: e.detailed_scores,
+      submission_id: e.submission_id ?? null,
       ci: (ciLow != null && ciHigh != null)
         ? `95% CI [${Number(ciLow).toFixed(3)}–${Number(ciHigh).toFixed(3)}]`
         : null,
@@ -1963,17 +1964,31 @@ const Leaderboard = () => {
                           </div>
                         </td>
                         <td className="px-2 py-2.5 min-w-[9rem] max-w-xs">
-                          <button
-                            type="button"
-                            className={[
-                              "font-medium truncate max-w-full text-left hover:text-[#defe47] hover:underline",
-                              isTop ? "text-white" : "text-gray-300",
-                            ].join(" ")}
-                            title={model.model}
-                            onClick={() => navigate(`/model/${encodeURIComponent(model.model)}`)}
-                          >
-                            {model.model}
-                          </button>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              className={[
+                                "font-medium truncate text-left hover:text-[#defe47] hover:underline",
+                                isTop ? "text-white" : "text-gray-300",
+                              ].join(" ")}
+                              title={model.model}
+                              onClick={() => navigate(`/model/${encodeURIComponent(model.model)}`)}
+                            >
+                              {model.model}
+                            </button>
+                            {model.submission_id != null && (
+                              <button
+                                type="button"
+                                title="Inspect per-example predictions"
+                                onClick={() => navigate(`/submissions/${model.submission_id}/examples`)}
+                                className="shrink-0 text-gray-600 hover:text-[#28b2fb] transition-colors"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+                                </svg>
+                              </button>
+                            )}
+                          </div>
                         </td>
                         <td className="px-5 py-2.5 text-right">
                           <span
