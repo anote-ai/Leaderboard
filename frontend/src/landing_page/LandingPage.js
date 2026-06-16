@@ -20,7 +20,7 @@ import RequestDataset from "./landing_page_components/RequestDataset";
 import AdminDatasetRequests from "./landing_page_components/AdminDatasetRequests";
 import AddDataset from "./landing_page_components/AddDataset";
 import DatasetDetails from "./landing_page_components/DatasetDetails";
-import { submittoleaderboardPath, mySubmissionsPath, adminLeaderboardPath, adminSubmissionsPath, adminDatasetRequestsPath, requestDatasetPath, csvBenchmarksPath, addDatasetPath, loginPath, oauthCallbackPath, createLeaderboardPath, compareModelsPath, modelCardPath } from "../constants/RouteConstants";
+import { submittoleaderboardPath, mySubmissionsPath, adminLeaderboardPath, adminSubmissionsPath, adminDatasetRequestsPath, requestDatasetPath, csvBenchmarksPath, addDatasetPath, loginPath, oauthCallbackPath, createLeaderboardPath, compareModelsPath, modelCardPath, faqPath } from "../constants/RouteConstants";
 import MySubmissions from "./landing_page_components/MySubmissions";
 import ModelComparison from "./landing_page_components/ModelComparison";
 import ModelCard from "./landing_page_components/ModelCard";
@@ -29,6 +29,7 @@ import AuthGuard from "./landing_page_components/AuthGuard";
 import LoginPage from "./landing_page_components/LoginPage";
 import OAuthCallback from "./landing_page_components/OAuthCallback";
 import CreateLeaderboardFromHF from "./landing_page_components/CreateLeaderboardFromHF";
+import FAQ from "./landing_page_components/FAQ";
 
 function LandingPage() {
   const location = useLocation();
@@ -83,6 +84,7 @@ function LandingPage() {
           <Route path="/dataset/:name" element={<DatasetDetails />} />,
           <Route path={compareModelsPath} element={<ModelComparison />} />,
           <Route path={modelCardPath} element={<ModelCard />} />,
+          <Route path={faqPath} element={<FAQ />} />,
           <Route path={requestDatasetPath} index element={<RequestDataset />} />,
           <Route path={adminLeaderboardPath} index element={<AuthGuard><AdminLeaderboardManager /></AuthGuard>} />,
           <Route path={adminSubmissionsPath} index element={<AuthGuard><AdminSubmissionsModeration /></AuthGuard>} />,

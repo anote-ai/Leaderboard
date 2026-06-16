@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
+  faqPath,
   loginPath,
   mySubmissionsPath,
   requestDatasetPath,
@@ -23,6 +24,7 @@ export default function HeaderBar() {
     { label: 'Submit', path: submittoleaderboardPath },
     { label: 'My submissions', path: mySubmissionsPath },
     { label: 'Request dataset', path: requestDatasetPath },
+    { label: 'FAQ', path: faqPath },
   ];
 
   const signedInWithJwt = authRev >= 0 && !!getLeaderboardJwt();
