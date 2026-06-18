@@ -1,10 +1,8 @@
 """Tests for email_notifications.send_submission_receipt."""
 from __future__ import annotations
 
-import os
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 try:
     import email_notifications as en

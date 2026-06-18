@@ -1,7 +1,6 @@
 """Tests for GET /public/compare_models and GET /public/model_names."""
 from __future__ import annotations
 
-import pytest
 
 try:
     import app as app_module

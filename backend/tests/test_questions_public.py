@@ -1,8 +1,6 @@
 """Tests for the questions_public flag: admin toggle and visibility enforcement."""
 from __future__ import annotations
 
-import os
-import pytest
 
 try:
     import app as app_module

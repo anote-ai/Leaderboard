@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import * as d3 from "d3";
 import { formatMetricsSummary } from "../../utils/formatMetricsSummary";
-import { submittoleaderboardPath } from "../../constants/RouteConstants";
+import { submittoleaderboardPath, submissionExamplesPath } from "../../constants/RouteConstants";
 import { getLeaderboardJwt } from "../../utils/leaderboardAuth";
 
 const API_BASE =
@@ -599,6 +599,16 @@ const MySubmissions = () => {
                         }`}
                       >
                         {visLoading ? "…" : isPublic ? "Public" : "Private"}
+                      </button>
+
+                      {/* Inspect */}
+                      <button
+                        type="button"
+                        onClick={() => navigate(submissionExamplesPath.replace(":id", r.submission_id))}
+                        title="Inspect per-example predictions"
+                        className="text-xs px-2 py-1 rounded-md border border-gray-700 text-[#28b2fb] hover:bg-[#28b2fb]/10 transition-colors"
+                      >
+                        Inspect
                       </button>
 
                       {/* Delete */}

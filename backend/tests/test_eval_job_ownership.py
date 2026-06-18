@@ -33,7 +33,8 @@ def test_owner_can_poll_job(monkeypatch):
     reset_jobs()
 
     from blueprints.submissions import _EVAL_JOBS
-    import uuid, time
+    import uuid
+    import time
 
     job_id = str(uuid.uuid4())
     _EVAL_JOBS[job_id] = {
@@ -63,7 +64,8 @@ def test_other_ip_cannot_poll_job(monkeypatch):
     reset_jobs()
 
     from blueprints.submissions import _EVAL_JOBS
-    import uuid, time
+    import uuid
+    import time
 
     job_id = str(uuid.uuid4())
     _EVAL_JOBS[job_id] = {
@@ -98,7 +100,8 @@ def test_private_fields_stripped_from_response(monkeypatch):
     reset_jobs()
 
     from blueprints.submissions import _EVAL_JOBS
-    import uuid, time
+    import uuid
+    import time
 
     job_id = str(uuid.uuid4())
     ip = "192.168.1.50"

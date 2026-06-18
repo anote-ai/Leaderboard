@@ -853,7 +853,7 @@ def submission_examples(submission_id: int):
     except Exception:
         det = {}
 
-    all_items: List[Dict[str, Any]] = det.get("item_results") or []
+    all_items: List[Dict[str, Any]] = det.get("item_results") or (det.get("detailed_scores") or {}).get("item_results") or []
     if filter_by == "correct":
         all_items = [it for it in all_items if it.get("correct") is True]
     elif filter_by == "wrong":

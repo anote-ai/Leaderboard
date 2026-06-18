@@ -1,10 +1,8 @@
 """Tests for email dataset-request notifications, SES transport, and quota_usage admin endpoint."""
 from __future__ import annotations
 
-import os
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 try:
     import app as app_module
