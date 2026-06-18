@@ -30,6 +30,7 @@ import AuthGuard from "./landing_page_components/AuthGuard";
 import LoginPage from "./landing_page_components/LoginPage";
 import OAuthCallback from "./landing_page_components/OAuthCallback";
 import CreateLeaderboardFromHF from "./landing_page_components/CreateLeaderboardFromHF";
+import FAQ from "./landing_page_components/FAQ";
 
 function LandingPage() {
   const location = useLocation();
@@ -85,6 +86,7 @@ function LandingPage() {
           <Route path={compareModelsPath} element={<ModelComparison />} />,
           <Route path={modelCardPath} element={<ModelCard />} />,
           <Route path={submissionExamplesPath} element={<SubmissionExamples />} />,
+          <Route path={faqPath} element={<FAQ />} />,
           <Route path={requestDatasetPath} index element={<RequestDataset />} />,
           <Route path={adminLeaderboardPath} index element={<AuthGuard><AdminLeaderboardManager /></AuthGuard>} />,
           <Route path={adminSubmissionsPath} index element={<AuthGuard><AdminSubmissionsModeration /></AuthGuard>} />,
