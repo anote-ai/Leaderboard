@@ -1,7 +1,6 @@
 """Tests for submission visibility toggle and delete (user privacy controls)."""
 from __future__ import annotations
 
-import pytest
 
 try:
     import app as app_module
