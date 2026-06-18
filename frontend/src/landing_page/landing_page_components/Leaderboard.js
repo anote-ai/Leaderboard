@@ -12,6 +12,32 @@ function humanizeMetricKey(metric) {
     .replace(/\b([a-z])/g, (c) => c.toUpperCase());
 }
 
+const METRIC_DESCRIPTIONS = {
+  accuracy: "Percentage of predictions that exactly match the correct label. Simple and intuitive: 0.90 means 90 out of 100 answers were right.",
+  f1: "Harmonic mean of precision (how many predicted positives were correct) and recall (how many actual positives were found). Better than accuracy when classes are unequal.",
+  f1_macro: "F1 averaged equally across all classes, regardless of how often each class appears. Useful when you care equally about every category.",
+  f1_micro: "F1 computed globally across all examples — favors performance on frequent classes.",
+  f1_weighted: "F1 averaged across classes, weighted by how often each class appears in the dataset.",
+  bleu: "Measures how closely model output matches a reference translation word-for-word (n-gram overlap). Range 0–1; higher is better. Reliable for European languages; unreliable for Japanese, Chinese, Korean.",
+  bertscore: "Measures semantic similarity between model output and a reference using contextual embeddings. Captures meaning even when wording differs. Range ~0.8–1.0 for good translations; much more reliable than BLEU for Asian scripts.",
+  rouge_l: "Longest Common Subsequence overlap between a generated summary and a reference. Captures fluency and coverage. Range 0–1; higher is better.",
+  exact_match: "1 if the predicted answer exactly matches the reference (after normalization), 0 otherwise. Strict but unambiguous.",
+  retrieval_accuracy: "Fraction of queries where the correct document or passage was retrieved in the top result. Higher is better.",
+  mrr: "Mean Reciprocal Rank — averages 1/rank of the first correct result across queries. A score of 1.0 means the correct answer was always ranked first.",
+  "mrr@10": "Mean Reciprocal Rank considering only the top 10 retrieved results. Common in information retrieval evaluation.",
+  spearman: "Spearman rank correlation between predicted scores and human judgments. Range −1 to 1; values above 0.7 are considered strong agreement.",
+  pass_at_1: "Fraction of coding problems solved correctly on the first attempt. Standard metric for code generation benchmarks.",
+  "pass@1": "Fraction of coding problems solved correctly on the first attempt. Standard metric for code generation benchmarks.",
+  median_distance_error: "Median geographic distance (in km) between the predicted location and the true location. Lower is better.",
+  inform_rate: "In dialogue systems: fraction of turns where the model correctly provided the information the user requested.",
+};
+
+function metricDescription(metric) {
+  if (!metric) return null;
+  const key = String(metric).toLowerCase().trim().replace(/\s+/g, "_");
+  return METRIC_DESCRIPTIONS[key] || null;
+}
+
 function domainMeta(datasetName, taskType) {
   const name = String(datasetName || "").toLowerCase();
   const task = String(taskType || "").toLowerCase();
@@ -1880,7 +1906,10 @@ const Leaderboard = () => {
                     {domainLabel.label}
                   </span>
                   {dataset.evaluation_metric && (
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-gray-800/80 text-[11px] text-gray-400 font-medium border border-gray-700/50">
+                    <span
+                      className="inline-flex items-center px-2 py-0.5 rounded-full bg-gray-800/80 text-[11px] text-gray-400 font-medium border border-gray-700/50 cursor-help"
+                      title={metricDescription(dataset.evaluation_metric) || humanizeMetricKey(dataset.evaluation_metric)}
+                    >
                       {humanizeMetricKey(dataset.evaluation_metric)}
                     </span>
                   )}
@@ -1927,12 +1956,16 @@ const Leaderboard = () => {
                     <th className="text-[10px] font-semibold uppercase tracking-widest text-gray-600 text-left px-2 py-2.5">Model</th>
                     <th
                       className="text-[10px] font-semibold uppercase tracking-widest text-gray-600 text-right px-5 py-2.5 w-28"
-                      title="Weighted aggregate (0–100) over reported metrics; hover a row for the breakdown."
+                      title={
+                        metricDescription(dataset.evaluation_metric)
+                          ? `${humanizeMetricKey(dataset.evaluation_metric)}: ${metricDescription(dataset.evaluation_metric)}`
+                          : "Weighted aggregate (0–100) over reported metrics; hover a row for the breakdown."
+                      }
                     >
                       Score
                     </th>
                     {extras.map((ek) => (
-                      <th key={ek} className="text-[10px] font-semibold uppercase tracking-widest text-gray-600 text-right px-2 py-2.5 w-22 max-w-[5.5rem]" title={ek}>
+                      <th key={ek} className="text-[10px] font-semibold uppercase tracking-widest text-gray-600 text-right px-2 py-2.5 w-22 max-w-[5.5rem]" title={metricDescription(ek) || ek}>
                         <span className="block truncate">{humanizeMetricKey(ek)}</span>
                       </th>
                     ))}
