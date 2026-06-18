@@ -13,14 +13,30 @@ import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { robotHeader } from "../util/RobotHeader";
 import Leaderboard from "./landing_page_components/Leaderboard";
-import SubmitToLeaderboard  from "./landing_page_components/SubmitToLeaderboard";
+import SubmitToLeaderboard from "./landing_page_components/SubmitToLeaderboard";
 import AdminLeaderboardManager from "./landing_page_components/AdminLeaderboardManager";
 import AdminSubmissionsModeration from "./landing_page_components/AdminSubmissionsModeration";
 import RequestDataset from "./landing_page_components/RequestDataset";
 import AdminDatasetRequests from "./landing_page_components/AdminDatasetRequests";
 import AddDataset from "./landing_page_components/AddDataset";
 import DatasetDetails from "./landing_page_components/DatasetDetails";
-import { submittoleaderboardPath, mySubmissionsPath, adminLeaderboardPath, adminSubmissionsPath, adminDatasetRequestsPath, requestDatasetPath, csvBenchmarksPath, addDatasetPath, loginPath, oauthCallbackPath, createLeaderboardPath, compareModelsPath, modelCardPath, submissionExamplesPath } from "../constants/RouteConstants";
+import {
+  submittoleaderboardPath,
+  mySubmissionsPath,
+  adminLeaderboardPath,
+  adminSubmissionsPath,
+  adminDatasetRequestsPath,
+  requestDatasetPath,
+  csvBenchmarksPath,
+  addDatasetPath,
+  loginPath,
+  oauthCallbackPath,
+  createLeaderboardPath,
+  faqPath,
+  compareModelsPath,
+  modelCardPath,
+  submissionExamplesPath,
+} from "../constants/RouteConstants";
 import MySubmissions from "./landing_page_components/MySubmissions";
 import ModelComparison from "./landing_page_components/ModelComparison";
 import ModelCard from "./landing_page_components/ModelCard";
@@ -35,7 +51,6 @@ import FAQ from "./landing_page_components/FAQ";
 function LandingPage() {
   const location = useLocation();
 
-
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
@@ -44,7 +59,9 @@ function LandingPage() {
     const sessionToken = localStorage.getItem("sessionToken");
     const apiKey = localStorage.getItem("leaderboard_api_key");
     const jwt = sessionStorage.getItem("lb_jwt");
-    setIsLoggedIn(!!(accessToken || sessionToken || (apiKey && apiKey.trim()) || jwt));
+    setIsLoggedIn(
+      !!(accessToken || sessionToken || (apiKey && apiKey.trim()) || jwt),
+    );
   }, [location.pathname]);
 
   useEffect(() => {
@@ -77,20 +94,93 @@ function LandingPage() {
           <Route index element={<Leaderboard />} />,
           <Route path={loginPath} element={<LoginPage />} />,
           <Route path={oauthCallbackPath} element={<OAuthCallback />} />,
-          <Route path={submittoleaderboardPath} index element={<AuthGuard><SubmitToLeaderboard /></AuthGuard>} />,
-          <Route path={mySubmissionsPath} index element={<AuthGuard><MySubmissions /></AuthGuard>} />,
-          <Route path={csvBenchmarksPath} index element={<Navigate replace to="/" />} />,
-          <Route path={addDatasetPath} index element={<AuthGuard><AddDataset /></AuthGuard>} />,
-          <Route path={createLeaderboardPath} index element={<AuthGuard><CreateLeaderboardFromHF /></AuthGuard>} />,
+          <Route
+            path={submittoleaderboardPath}
+            index
+            element={
+              <AuthGuard>
+                <SubmitToLeaderboard />
+              </AuthGuard>
+            }
+          />
+          ,
+          <Route
+            path={mySubmissionsPath}
+            index
+            element={
+              <AuthGuard>
+                <MySubmissions />
+              </AuthGuard>
+            }
+          />
+          ,
+          <Route
+            path={csvBenchmarksPath}
+            index
+            element={<Navigate replace to="/" />}
+          />
+          ,
+          <Route
+            path={addDatasetPath}
+            index
+            element={
+              <AuthGuard>
+                <AddDataset />
+              </AuthGuard>
+            }
+          />
+          ,
+          <Route
+            path={createLeaderboardPath}
+            index
+            element={
+              <AuthGuard>
+                <CreateLeaderboardFromHF />
+              </AuthGuard>
+            }
+          />
+          ,
           <Route path="/dataset/:name" element={<DatasetDetails />} />,
           <Route path={compareModelsPath} element={<ModelComparison />} />,
           <Route path={modelCardPath} element={<ModelCard />} />,
-          <Route path={submissionExamplesPath} element={<SubmissionExamples />} />,
+          <Route
+            path={submissionExamplesPath}
+            element={<SubmissionExamples />}
+          />
+          ,
           <Route path={faqPath} element={<FAQ />} />,
-          <Route path={requestDatasetPath} index element={<RequestDataset />} />,
-          <Route path={adminLeaderboardPath} index element={<AuthGuard><AdminLeaderboardManager /></AuthGuard>} />,
-          <Route path={adminSubmissionsPath} index element={<AuthGuard><AdminSubmissionsModeration /></AuthGuard>} />,
-          <Route path={adminDatasetRequestsPath} index element={<AuthGuard><AdminDatasetRequests /></AuthGuard>} />,
+          <Route path={requestDatasetPath} index element={<RequestDataset />} />
+          ,
+          <Route
+            path={adminLeaderboardPath}
+            index
+            element={
+              <AuthGuard>
+                <AdminLeaderboardManager />
+              </AuthGuard>
+            }
+          />
+          ,
+          <Route
+            path={adminSubmissionsPath}
+            index
+            element={
+              <AuthGuard>
+                <AdminSubmissionsModeration />
+              </AuthGuard>
+            }
+          />
+          ,
+          <Route
+            path={adminDatasetRequestsPath}
+            index
+            element={
+              <AuthGuard>
+                <AdminDatasetRequests />
+              </AuthGuard>
+            }
+          />
+          ,
           <Route path="*" element={<Navigate replace to="/" />} />
         </Routes>
       </div>
