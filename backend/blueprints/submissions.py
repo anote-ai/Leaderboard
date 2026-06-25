@@ -1004,6 +1004,19 @@ def update_submission_visibility(submission_id: int):
 
 def _call_llm(provider: str, model_id: str, api_key: Optional[str], prompt: str) -> str:
     """Call an LLM provider and return raw text response."""
+    if provider == "echo":
+        items = []
+        for line in prompt.splitlines():
+            if not line.startswith("[") or "]" not in line:
+                continue
+            raw_id, text = line[1:].split("]", 1)
+            try:
+                item_id = int(raw_id.strip())
+            except ValueError:
+                continue
+            items.append({"id": item_id, "output": text.strip()})
+        return json.dumps(items)
+
     if provider == "openai":
         try:
             from openai import OpenAI  # type: ignore
@@ -1176,7 +1189,6 @@ def _build_batch_prompt(task_type: str, batch_items: List[dict]) -> str:
 
 @bp.post("/public/run_llm_submission")
 @rate_limit("SUBMIT_MODEL_RATE_LIMIT", "10/minute")
-@require_api_key
 def run_llm_submission():
     """Run an LLM against a benchmark dataset and auto-submit the results.
 
@@ -1184,7 +1196,7 @@ def run_llm_submission():
     {
       "benchmarkDatasetName": "GLUE SST-2 - Sentiment Classification",
       "modelName": "gpt-4o-mini",
-      "provider": "openai",          // openai | anthropic | google | ollama
+      "provider": "openai",          // openai | anthropic | google | ollama | echo
       "model_id": "gpt-4o-mini",
       "api_key": "sk-...",           // optional — falls back to server env var
       "batch_size": 20,              // default 20
@@ -1203,6 +1215,10 @@ def run_llm_submission():
     provider = str(data.get("provider") or "openai").lower().strip()
     model_id = str(data.get("model_id") or data.get("modelId") or "").strip()
     user_api_key = str(data.get("api_key") or data.get("apiKey") or "").strip() or None
+    if provider != "echo":
+        auth_check = require_api_key(lambda: None)()
+        if auth_check is not None:
+            return auth_check
     try:
         batch_size = parse_bounded_int(data.get("batch_size"), "batch_size", 20, min_value=1, max_value=100)
     except ValueError as e:
@@ -1329,6 +1345,25 @@ def run_llm_submission():
                         conn_w.close()
                     except Exception:
                         pass
+            if submission_id is None:
+                submission_id = len(_STORE["submissions"]) + 1
+                _STORE["submissions"].append({
+                    "id": submission_id,
+                    "benchmark_dataset_name": benchmark_name,
+                    "model_name": model_name,
+                    "submitted_by": submitted_by,
+                    "submitter_id": submitter_id,
+                    "results": all_predictions,
+                    "is_public": is_public,
+                    "created": utc_now(),
+                })
+                _STORE["evaluations"].append({
+                    "submission_id": submission_id,
+                    "score": float(score),
+                    "metric": metric,
+                    "evaluation_details": eval_details,
+                    "created": utc_now(),
+                })
 
             with _EVAL_JOBS_LOCK:
                 existing = _EVAL_JOBS.get(job_id, {})

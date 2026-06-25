@@ -179,6 +179,8 @@ def test_submission_format_exposes_allowed_outputs_without_answers(monkeypatch):
 
 def test_run_llm_submission_validates_dataset_and_provider_failure(monkeypatch):
     monkeypatch.setenv("DISABLE_RATE_LIMIT", "1")
+    monkeypatch.delenv("REQUIRE_API_KEY", raising=False)
+    monkeypatch.delenv("LEADERBOARD_API_KEYS", raising=False)
     monkeypatch.setattr(app_module, "get_db_connection", lambda: (None, None))
     reset_store()
     seed_classification_dataset("llm_workflow")
@@ -187,7 +189,7 @@ def test_run_llm_submission_validates_dataset_and_provider_failure(monkeypatch):
         missing = c.post("/public/run_llm_submission", json={
             "benchmarkDatasetName": "missing",
             "modelName": "llm",
-            "provider": "not-a-provider",
+            "provider": "echo",
         })
         assert missing.status_code == 404
 
@@ -209,3 +211,36 @@ def test_run_llm_submission_validates_dataset_and_provider_failure(monkeypatch):
             time.sleep(0.05)
         assert final_body["status"] == "failed"
         assert "Unknown provider" in final_body["error"]
+
+
+def test_run_llm_submission_echo_provider_needs_no_credentials(monkeypatch):
+    monkeypatch.setenv("DISABLE_RATE_LIMIT", "1")
+    monkeypatch.setenv("REQUIRE_API_KEY", "1")
+    monkeypatch.delenv("LEADERBOARD_API_KEYS", raising=False)
+    monkeypatch.setattr(app_module, "get_db_connection", lambda: (None, None))
+    reset_store()
+    seed_classification_dataset("echo_workflow")
+
+    with app.test_client() as c:
+        response = c.post("/public/run_llm_submission", json={
+            "benchmarkDatasetName": "echo_workflow",
+            "modelName": "Echo demo",
+            "provider": "echo",
+            "batch_size": 1,
+        })
+        assert response.status_code == 202
+        job_id = response.get_json()["job_id"]
+
+        final_body = None
+        for _ in range(40):
+            poll = c.get(f"/public/eval_jobs/{job_id}")
+            assert poll.status_code == 200
+            final_body = poll.get_json()
+            if final_body["status"] == "completed":
+                break
+            time.sleep(0.05)
+
+        assert final_body["status"] == "completed"
+        assert final_body["success"] is True
+        assert final_body["submission_id"] == 1
+        assert len(app_module._STORE["submissions"]) == 1
