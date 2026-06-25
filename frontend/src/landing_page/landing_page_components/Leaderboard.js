@@ -3,6 +3,7 @@ import IconButton from "@mui/material/IconButton";
 import Skeleton from "@mui/material/Skeleton";
 import { submittoleaderboardPath, compareModelsPath } from "../../constants/RouteConstants";
 import { useNavigate } from "react-router-dom";
+import WatchDialog from "./WatchDialog";
 
 function humanizeMetricKey(metric) {
   if (!metric || String(metric).trim() === "") return "";
@@ -223,6 +224,7 @@ const Leaderboard = () => {
   const [isDemoMode, setIsDemoMode] = useState(false);
   const [apiFailed, setApiFailed] = useState(false);
   const [refreshNonce, setRefreshNonce] = useState(0);
+  const [watchDatasetName, setWatchDatasetName] = useState(null);
   const API_BASE = process.env.REACT_APP_API_BASE || process.env.REACT_APP_API_ENDPOINT || "http://localhost:5001";
 
   const liveDatasets = useMemo(() => groupLeaderboardEntries(liveEntries), [liveEntries]);
@@ -1931,6 +1933,14 @@ const Leaderboard = () => {
                 </button>
                 <button
                   type="button"
+                  className="inline-flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border border-gray-700/60 text-gray-500 hover:text-[#defe47] hover:border-[#defe47]/30 transition-colors"
+                  onClick={() => setWatchDatasetName(dataset.name)}
+                  title="Watch this dataset for ranking changes"
+                >
+                  <span>🔔</span> Watch
+                </button>
+                <button
+                  type="button"
                   className="inline-flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border border-gray-700/60 text-gray-500 hover:text-[#28b2fb] hover:border-[#28b2fb]/30 transition-colors"
                   onClick={() => navigate(`/dataset/${encodeURIComponent(dataset.name)}`, {
                     state: {
@@ -2132,6 +2142,9 @@ const Leaderboard = () => {
         </div>
       </div>
 
+      {watchDatasetName && (
+        <WatchDialog datasetName={watchDatasetName} onClose={() => setWatchDatasetName(null)} />
+      )}
     </div>
   );
 };
