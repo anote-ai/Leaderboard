@@ -400,6 +400,115 @@ def send_dataset_request_admin_alert(
     _send_async_multi(admins, subject, html, text)
 
 
+def _beaten_notification_html(
+    your_model: str,
+    your_score: float,
+    new_model: str,
+    new_score: float,
+    dataset_name: str,
+    metric: str,
+    frontend_url: str,
+    unsubscribe_url: str = "",
+) -> str:
+    your_score_str = f"{your_score:.4f}" if your_score < 1 else f"{your_score:.2f}"
+    new_score_str = f"{new_score:.4f}" if new_score < 1 else f"{new_score:.2f}"
+    leaderboard_url = f"{frontend_url}/leaderboard"
+    unsub_html = (
+        f' &middot; <a href="{unsubscribe_url}" style="color:#6b7280">Unsubscribe</a>'
+        if unsubscribe_url else ""
+    )
+    return f"""<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><style>{_BASE_STYLE}
+.row {{ display:flex; justify-content:space-between; align-items:center;
+        padding:10px 0; border-bottom:1px solid #1f2937; }}
+.row:last-child {{ border-bottom:none; }}
+.row-label {{ font-size:13px; color:#9ca3af; }}
+.row-val {{ font-size:14px; font-weight:700; color:#e5e7eb; }}
+.row-val.new {{ color:#defe47; }}
+</style></head>
+<body>
+<div class="wrap">
+  <div class="header"><span class="logo">Anote Leaderboard</span></div>
+  <div class="body">
+    <h2>Rankings changed on {dataset_name}</h2>
+    <p>
+      A new submission just moved to <strong style="color:#fff">#1</strong> on
+      <strong style="color:#fff">{dataset_name}</strong>.
+    </p>
+    <div class="score-box">
+      <div class="row">
+        <span class="row-label">New #1 &mdash; {new_model}</span>
+        <span class="row-val new">{new_score_str}</span>
+      </div>
+      <div class="row">
+        <span class="row-label">{your_model}</span>
+        <span class="row-val">{your_score_str}</span>
+      </div>
+      <div class="score-metric" style="margin-top:8px">{metric.upper().replace("_", " ")}</div>
+    </div>
+    <p>Think you can reclaim the top spot? Submit an updated model to challenge the new leader.</p>
+    <a href="{leaderboard_url}" class="btn">View Leaderboard</a>
+  </div>
+  <div class="footer">
+    Anote AI · You received this because you are watching this dataset{unsub_html}.<br>
+    <a href="{frontend_url}" style="color:#6b7280">leaderboard.anote.ai</a>
+  </div>
+</div>
+</body>
+</html>"""
+
+
+def _beaten_notification_text(
+    your_model: str,
+    your_score: float,
+    new_model: str,
+    new_score: float,
+    dataset_name: str,
+    metric: str,
+    frontend_url: str,
+    unsubscribe_url: str = "",
+) -> str:
+    your_score_str = f"{your_score:.4f}" if your_score < 1 else f"{your_score:.2f}"
+    new_score_str = f"{new_score:.4f}" if new_score < 1 else f"{new_score:.2f}"
+    unsub_line = f"Unsubscribe: {unsubscribe_url}\n" if unsubscribe_url else ""
+    return (
+        f"Anote Leaderboard — Rankings changed on {dataset_name}\n"
+        f"{'=' * 42}\n\n"
+        f"Dataset: {dataset_name}\n"
+        f"Metric:  {metric.upper().replace('_', ' ')}\n\n"
+        f"New #1  {new_model}: {new_score_str}\n"
+        f"        {your_model}: {your_score_str}\n\n"
+        f"View leaderboard: {frontend_url}/leaderboard\n"
+        f"{unsub_line}\n"
+        f"Anote AI · {frontend_url}"
+    )
+
+
+def send_beaten_notification(
+    to_email: str,
+    *,
+    your_model: str,
+    your_score: float,
+    new_model: str,
+    new_score: float,
+    dataset_name: str,
+    metric: str,
+    unsubscribe_url: str = "",
+) -> None:
+    """Notify a watcher that rankings changed on a dataset they are watching.
+
+    No-op if email is not configured or to_email is not a valid address.
+    """
+    if not to_email or "@" not in to_email:
+        return
+    url = _frontend_url()
+    subject = f"[Anote] Rankings changed on {dataset_name}"
+    html = _beaten_notification_html(your_model, your_score, new_model, new_score, dataset_name, metric, url, unsubscribe_url)
+    text = _beaten_notification_text(your_model, your_score, new_model, new_score, dataset_name, metric, url, unsubscribe_url)
+    _send_async(to_email, subject, html, text)
+
+
 def send_submission_receipt(
     to_email: str,
     *,

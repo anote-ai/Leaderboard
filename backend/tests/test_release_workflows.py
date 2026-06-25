@@ -179,6 +179,8 @@ def test_submission_format_exposes_allowed_outputs_without_answers(monkeypatch):
 
 def test_run_llm_submission_validates_dataset_and_provider_failure(monkeypatch):
     monkeypatch.setenv("DISABLE_RATE_LIMIT", "1")
+    monkeypatch.delenv("REQUIRE_API_KEY", raising=False)
+    monkeypatch.delenv("LEADERBOARD_API_KEYS", raising=False)
     monkeypatch.setattr(app_module, "get_db_connection", lambda: (None, None))
     reset_store()
     seed_classification_dataset("llm_workflow")
@@ -209,3 +211,266 @@ def test_run_llm_submission_validates_dataset_and_provider_failure(monkeypatch):
             time.sleep(0.05)
         assert final_body["status"] == "failed"
         assert "Unknown provider" in final_body["error"]
+
+
+def test_beaten_notification_fires_when_champion_is_displaced(monkeypatch):
+    monkeypatch.setenv("DISABLE_RATE_LIMIT", "1")
+    monkeypatch.setenv("LEADERBOARD_JWT_SECRET", "dev-secret")
+    monkeypatch.setattr(app_module, "get_db_connection", lambda: (None, None))
+    reset_store()
+    seed_classification_dataset("beaten_ds")
+
+    beaten_calls: list[dict] = []
+
+    try:
+        import email_notifications
+    except ImportError:
+        import backend.email_notifications as email_notifications  # type: ignore
+
+    monkeypatch.setattr(
+        email_notifications,
+        "send_beaten_notification",
+        lambda to, **kw: beaten_calls.append({"to": to, **kw}),
+    )
+
+    with app.test_client() as c:
+        # First submitter becomes champion
+        r1 = c.post("/public/submit_model", json={
+            "benchmarkDatasetName": "beaten_ds",
+            "modelName": "champ-model",
+            "modelResults": ["positive", "negative"],
+            "sentence_ids": [0, 1],
+            "submittedBy": "champion@example.com",
+            "is_public": True,
+        }, headers=auth_headers("champ"))
+        assert r1.status_code == 200
+        assert len(beaten_calls) == 0  # no one to notify yet
+
+        # Second submitter beats the champion with a perfect score (same labels)
+        r2 = c.post("/public/submit_model", json={
+            "benchmarkDatasetName": "beaten_ds",
+            "modelName": "challenger-model",
+            "modelResults": ["positive", "negative"],
+            "sentence_ids": [0, 1],
+            "submittedBy": "challenger@example.com",
+            "is_public": True,
+        }, headers=auth_headers("challenger"))
+        assert r2.status_code == 200
+
+    # Both submissions score 1.0 (accuracy); challenger ties/beats champion — notification fires
+    # when new_score > prev_score strictly, so we need a strict improvement.
+    # Re-run with only one correct to set champion below 1.0 first.
+    reset_store()
+    beaten_calls.clear()
+    app_module._STORE["datasets"].append({
+        "name": "beaten_ds2",
+        "task_type": "text_classification",
+        "evaluation_metric": "accuracy",
+        "reference_data": {
+            "source_texts": ["great", "bad", "ok"],
+            "labels": ["positive", "negative", "neutral"],
+            "label_names": ["positive", "negative", "neutral"],
+        },
+    })
+
+    with app.test_client() as c:
+        # Champion scores 1/3 ≈ 0.333
+        c.post("/public/submit_model", json={
+            "benchmarkDatasetName": "beaten_ds2",
+            "modelName": "weak-champ",
+            "modelResults": ["positive", "positive", "positive"],
+            "sentence_ids": [0, 1, 2],
+            "submittedBy": "weak@example.com",
+            "is_public": True,
+        }, headers=auth_headers("weak-champ"))
+        assert len(beaten_calls) == 0
+
+        # Challenger scores 3/3 = 1.0 — displaces the champion
+        c.post("/public/submit_model", json={
+            "benchmarkDatasetName": "beaten_ds2",
+            "modelName": "strong-challenger",
+            "modelResults": ["positive", "negative", "neutral"],
+            "sentence_ids": [0, 1, 2],
+            "submittedBy": "strong@example.com",
+            "is_public": True,
+        }, headers=auth_headers("strong-challenger"))
+
+    assert len(beaten_calls) == 1
+    call = beaten_calls[0]
+    assert call["to"] == "weak@example.com"
+    assert call["your_model"] == "weak-champ"
+    assert call["new_model"] == "strong-challenger"
+    assert call["new_score"] > call["your_score"]
+    assert call["dataset_name"] == "beaten_ds2"
+
+
+def test_watch_subscribe_unsubscribe_roundtrip(monkeypatch):
+    monkeypatch.setenv("DISABLE_RATE_LIMIT", "1")
+    monkeypatch.setattr(app_module, "get_db_connection", lambda: (None, None))
+    reset_store()
+
+    with app.test_client() as c:
+        # Subscribe
+        r = c.post("/public/datasets/my-dataset/watch", json={
+            "email": "watcher@example.com",
+            "watch_type": "beaten",
+        })
+        assert r.status_code == 200
+        assert r.get_json()["success"] is True
+
+        # Status shows watching
+        s = c.get("/public/datasets/my-dataset/watch?email=watcher@example.com")
+        assert s.status_code == 200
+        body = s.get_json()
+        assert body["watching"] is True
+        assert body["watch_type"] == "beaten"
+
+        # Unsubscribe by email
+        u = c.delete("/public/datasets/my-dataset/watch", json={"email": "watcher@example.com"})
+        assert u.status_code == 200
+
+        # Status shows not watching
+        s2 = c.get("/public/datasets/my-dataset/watch?email=watcher@example.com")
+        assert s2.get_json()["watching"] is False
+
+
+def test_watch_token_unsubscribe_page(monkeypatch):
+    monkeypatch.setenv("DISABLE_RATE_LIMIT", "1")
+    monkeypatch.setattr(app_module, "get_db_connection", lambda: (None, None))
+    reset_store()
+
+    with app.test_client() as c:
+        c.post("/public/datasets/tok-ds/watch", json={
+            "email": "tok@example.com", "watch_type": "top5"
+        })
+        token = next(
+            w["token"] for w in app_module._STORE["watches"]
+            if w["email"] == "tok@example.com"
+        )
+
+        page = c.get(f"/public/watch/unsubscribe?token={token}")
+        assert page.status_code == 200
+        assert b"unsubscribed" in page.data.lower()
+
+        # Second click: already unsubscribed
+        page2 = c.get(f"/public/watch/unsubscribe?token={token}")
+        assert page2.status_code == 200
+        assert b"already" in page2.data.lower()
+
+
+def test_watchers_receive_beaten_notification(monkeypatch):
+    monkeypatch.setenv("DISABLE_RATE_LIMIT", "1")
+    monkeypatch.setenv("LEADERBOARD_JWT_SECRET", "dev-secret")
+    monkeypatch.setattr(app_module, "get_db_connection", lambda: (None, None))
+    reset_store()
+    app_module._STORE["datasets"].append({
+        "name": "watcher_ds",
+        "task_type": "text_classification",
+        "evaluation_metric": "accuracy",
+        "reference_data": {
+            "source_texts": ["great", "bad", "ok"],
+            "labels": ["positive", "negative", "neutral"],
+            "label_names": ["positive", "negative", "neutral"],
+        },
+    })
+
+    beaten_calls: list[dict] = []
+
+    try:
+        import email_notifications
+    except ImportError:
+        import backend.email_notifications as email_notifications  # type: ignore
+
+    monkeypatch.setattr(
+        email_notifications,
+        "send_beaten_notification",
+        lambda to, **kw: beaten_calls.append({"to": to, **kw}),
+    )
+
+    with app.test_client() as c:
+        # A third party watches the dataset (not a submitter)
+        c.post("/public/datasets/watcher_ds/watch", json={
+            "email": "bystander@example.com", "watch_type": "beaten"
+        })
+
+        # Weak champion
+        c.post("/public/submit_model", json={
+            "benchmarkDatasetName": "watcher_ds",
+            "modelName": "champ",
+            "modelResults": ["positive", "positive", "positive"],
+            "sentence_ids": [0, 1, 2],
+            "submittedBy": "champ@example.com",
+            "is_public": True,
+        }, headers=auth_headers("champ"))
+        assert len(beaten_calls) == 0
+
+        # Challenger beats champion
+        c.post("/public/submit_model", json={
+            "benchmarkDatasetName": "watcher_ds",
+            "modelName": "challenger",
+            "modelResults": ["positive", "negative", "neutral"],
+            "sentence_ids": [0, 1, 2],
+            "submittedBy": "challenger@example.com",
+            "is_public": True,
+        }, headers=auth_headers("challenger"))
+
+    # champion + bystander should both receive notifications
+    recipients = {call["to"] for call in beaten_calls}
+    assert "champ@example.com" in recipients
+    assert "bystander@example.com" in recipients
+    # challenger should NOT be notified (they are the new #1)
+    assert "challenger@example.com" not in recipients
+    # Both emails carry the dataset name
+    for call in beaten_calls:
+        assert call["dataset_name"] == "watcher_ds"
+
+
+def test_beaten_notification_not_sent_for_self_improvement(monkeypatch):
+    monkeypatch.setenv("DISABLE_RATE_LIMIT", "1")
+    monkeypatch.setenv("LEADERBOARD_JWT_SECRET", "dev-secret")
+    monkeypatch.setattr(app_module, "get_db_connection", lambda: (None, None))
+    reset_store()
+    app_module._STORE["datasets"].append({
+        "name": "self_improve_ds",
+        "task_type": "text_classification",
+        "evaluation_metric": "accuracy",
+        "reference_data": {
+            "source_texts": ["great", "bad", "ok"],
+            "labels": ["positive", "negative", "neutral"],
+            "label_names": ["positive", "negative", "neutral"],
+        },
+    })
+
+    beaten_calls: list[dict] = []
+
+    try:
+        import email_notifications
+    except ImportError:
+        import backend.email_notifications as email_notifications  # type: ignore
+
+    monkeypatch.setattr(
+        email_notifications,
+        "send_beaten_notification",
+        lambda to, **kw: beaten_calls.append({"to": to, **kw}),
+    )
+
+    with app.test_client() as c:
+        # Same submitter improves their own score — no self-notification
+        c.post("/public/submit_model", json={
+            "benchmarkDatasetName": "self_improve_ds",
+            "modelName": "v1",
+            "modelResults": ["positive", "positive", "positive"],
+            "sentence_ids": [0, 1, 2],
+            "submittedBy": "self@example.com",
+            "is_public": True,
+        }, headers=auth_headers("self-user"))
+        c.post("/public/submit_model", json={
+            "benchmarkDatasetName": "self_improve_ds",
+            "modelName": "v2",
+            "modelResults": ["positive", "negative", "neutral"],
+            "sentence_ids": [0, 1, 2],
+            "submittedBy": "self@example.com",
+            "is_public": True,
+        }, headers=auth_headers("self-user"))
+
+    assert len(beaten_calls) == 0
