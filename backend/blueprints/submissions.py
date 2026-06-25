@@ -348,6 +348,15 @@ def submit_model():
                 ci_high=ci_high,
                 submission_id=submission_id,
             )
+        # Notify the previous #1 holder if they've been displaced (fire-and-forget)
+        _notify_displaced_champion(
+            dataset_name=benchmark_dataset_name,
+            new_submission_id=submission_id,
+            new_model_name=model_name,
+            new_score=float(score),
+            metric=metric,
+            new_submitted_by=submitted_by or "",
+        )
         return {
             "success": True,
             "submission_id": submission_id,
@@ -998,6 +1007,98 @@ def update_submission_visibility(submission_id: int):
         return jsonify({"success": False, "error": "Forbidden"}), 403
     sub_row["is_public"] = is_public
     return jsonify({"success": True, "submission_id": submission_id, "is_public": bool(is_public)})
+
+
+# ── Beaten-champion notification ─────────────────────────────────────────────
+
+def _notify_displaced_champion(
+    dataset_name: str,
+    new_submission_id: int,
+    new_model_name: str,
+    new_score: float,
+    metric: str,
+    new_submitted_by: str,
+) -> None:
+    """Find the previous #1 submission on the dataset and email them if displaced."""
+    try:
+        send_beaten = None
+        try:
+            from email_notifications import send_beaten_notification  # type: ignore
+            send_beaten = send_beaten_notification
+        except ImportError:
+            try:
+                from backend.email_notifications import send_beaten_notification  # type: ignore
+                send_beaten = send_beaten_notification
+            except ImportError:
+                pass
+        if send_beaten is None:
+            return
+
+        prev_email: str = ""
+        prev_model: str = ""
+        prev_score: float = -1.0
+
+        conn, cursor = get_db_connection()
+        if conn and cursor:
+            try:
+                cursor.execute(
+                    "SELECT ms.submitted_by, ms.model_name, er.score "
+                    "FROM model_submissions ms "
+                    "JOIN evaluation_results er ON er.model_submission_id = ms.id "
+                    "JOIN benchmark_datasets bd ON ms.benchmark_dataset_id = bd.id "
+                    "WHERE bd.name = %s AND ms.id != %s AND ms.is_public = 1 "
+                    "ORDER BY er.score DESC LIMIT 1",
+                    (dataset_name, new_submission_id),
+                )
+                row = cursor.fetchone()
+                if row:
+                    prev_email = row.get("submitted_by") or ""
+                    prev_model = row.get("model_name") or ""
+                    prev_score = float(row.get("score", -1))
+            except Exception:
+                pass
+            finally:
+                try:
+                    cursor.close()
+                    conn.close()
+                except Exception:
+                    pass
+        else:
+            best_score = -1.0
+            for ev in _STORE["evaluations"]:
+                sub = next((s for s in _STORE["submissions"] if s["id"] == ev["submission_id"]), None)
+                if not sub:
+                    continue
+                if sub.get("benchmark_dataset_name") != dataset_name:
+                    continue
+                if sub["id"] == new_submission_id:
+                    continue
+                if not sub.get("is_public", 1):
+                    continue
+                if ev["score"] > best_score:
+                    best_score = ev["score"]
+                    prev_email = sub.get("submitted_by") or ""
+                    prev_model = sub.get("model_name") or ""
+                    prev_score = ev["score"]
+
+        if (
+            prev_email
+            and "@" in prev_email
+            and prev_score >= 0
+            and new_score > prev_score
+            and prev_email != new_submitted_by
+        ):
+            send_beaten(
+                prev_email,
+                your_model=prev_model,
+                your_score=prev_score,
+                new_model=new_model_name,
+                new_score=new_score,
+                dataset_name=dataset_name,
+                metric=metric,
+            )
+    except Exception:
+        logger.exception("beaten_notification_failed")
 
 
 # ── LLM runner ───────────────────────────────────────────────────────────────

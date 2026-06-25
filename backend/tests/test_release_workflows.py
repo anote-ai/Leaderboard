@@ -179,6 +179,8 @@ def test_submission_format_exposes_allowed_outputs_without_answers(monkeypatch):
 
 def test_run_llm_submission_validates_dataset_and_provider_failure(monkeypatch):
     monkeypatch.setenv("DISABLE_RATE_LIMIT", "1")
+    monkeypatch.delenv("REQUIRE_API_KEY", raising=False)
+    monkeypatch.delenv("LEADERBOARD_API_KEYS", raising=False)
     monkeypatch.setattr(app_module, "get_db_connection", lambda: (None, None))
     reset_store()
     seed_classification_dataset("llm_workflow")
@@ -209,3 +211,145 @@ def test_run_llm_submission_validates_dataset_and_provider_failure(monkeypatch):
             time.sleep(0.05)
         assert final_body["status"] == "failed"
         assert "Unknown provider" in final_body["error"]
+
+
+def test_beaten_notification_fires_when_champion_is_displaced(monkeypatch):
+    monkeypatch.setenv("DISABLE_RATE_LIMIT", "1")
+    monkeypatch.setenv("LEADERBOARD_JWT_SECRET", "dev-secret")
+    monkeypatch.setattr(app_module, "get_db_connection", lambda: (None, None))
+    reset_store()
+    seed_classification_dataset("beaten_ds")
+
+    beaten_calls: list[dict] = []
+
+    try:
+        import email_notifications
+    except ImportError:
+        import backend.email_notifications as email_notifications  # type: ignore
+
+    monkeypatch.setattr(
+        email_notifications,
+        "send_beaten_notification",
+        lambda to, **kw: beaten_calls.append({"to": to, **kw}),
+    )
+
+    with app.test_client() as c:
+        # First submitter becomes champion
+        r1 = c.post("/public/submit_model", json={
+            "benchmarkDatasetName": "beaten_ds",
+            "modelName": "champ-model",
+            "modelResults": ["positive", "negative"],
+            "sentence_ids": [0, 1],
+            "submittedBy": "champion@example.com",
+            "is_public": True,
+        }, headers=auth_headers("champ"))
+        assert r1.status_code == 200
+        assert len(beaten_calls) == 0  # no one to notify yet
+
+        # Second submitter beats the champion with a perfect score (same labels)
+        r2 = c.post("/public/submit_model", json={
+            "benchmarkDatasetName": "beaten_ds",
+            "modelName": "challenger-model",
+            "modelResults": ["positive", "negative"],
+            "sentence_ids": [0, 1],
+            "submittedBy": "challenger@example.com",
+            "is_public": True,
+        }, headers=auth_headers("challenger"))
+        assert r2.status_code == 200
+
+    # Both submissions score 1.0 (accuracy); challenger ties/beats champion — notification fires
+    # when new_score > prev_score strictly, so we need a strict improvement.
+    # Re-run with only one correct to set champion below 1.0 first.
+    reset_store()
+    beaten_calls.clear()
+    app_module._STORE["datasets"].append({
+        "name": "beaten_ds2",
+        "task_type": "text_classification",
+        "evaluation_metric": "accuracy",
+        "reference_data": {
+            "source_texts": ["great", "bad", "ok"],
+            "labels": ["positive", "negative", "neutral"],
+            "label_names": ["positive", "negative", "neutral"],
+        },
+    })
+
+    with app.test_client() as c:
+        # Champion scores 1/3 ≈ 0.333
+        c.post("/public/submit_model", json={
+            "benchmarkDatasetName": "beaten_ds2",
+            "modelName": "weak-champ",
+            "modelResults": ["positive", "positive", "positive"],
+            "sentence_ids": [0, 1, 2],
+            "submittedBy": "weak@example.com",
+            "is_public": True,
+        }, headers=auth_headers("weak-champ"))
+        assert len(beaten_calls) == 0
+
+        # Challenger scores 3/3 = 1.0 — displaces the champion
+        c.post("/public/submit_model", json={
+            "benchmarkDatasetName": "beaten_ds2",
+            "modelName": "strong-challenger",
+            "modelResults": ["positive", "negative", "neutral"],
+            "sentence_ids": [0, 1, 2],
+            "submittedBy": "strong@example.com",
+            "is_public": True,
+        }, headers=auth_headers("strong-challenger"))
+
+    assert len(beaten_calls) == 1
+    call = beaten_calls[0]
+    assert call["to"] == "weak@example.com"
+    assert call["your_model"] == "weak-champ"
+    assert call["new_model"] == "strong-challenger"
+    assert call["new_score"] > call["your_score"]
+    assert call["dataset_name"] == "beaten_ds2"
+
+
+def test_beaten_notification_not_sent_for_self_improvement(monkeypatch):
+    monkeypatch.setenv("DISABLE_RATE_LIMIT", "1")
+    monkeypatch.setenv("LEADERBOARD_JWT_SECRET", "dev-secret")
+    monkeypatch.setattr(app_module, "get_db_connection", lambda: (None, None))
+    reset_store()
+    app_module._STORE["datasets"].append({
+        "name": "self_improve_ds",
+        "task_type": "text_classification",
+        "evaluation_metric": "accuracy",
+        "reference_data": {
+            "source_texts": ["great", "bad", "ok"],
+            "labels": ["positive", "negative", "neutral"],
+            "label_names": ["positive", "negative", "neutral"],
+        },
+    })
+
+    beaten_calls: list[dict] = []
+
+    try:
+        import email_notifications
+    except ImportError:
+        import backend.email_notifications as email_notifications  # type: ignore
+
+    monkeypatch.setattr(
+        email_notifications,
+        "send_beaten_notification",
+        lambda to, **kw: beaten_calls.append({"to": to, **kw}),
+    )
+
+    with app.test_client() as c:
+        # Same submitter improves their own score — no self-notification
+        c.post("/public/submit_model", json={
+            "benchmarkDatasetName": "self_improve_ds",
+            "modelName": "v1",
+            "modelResults": ["positive", "positive", "positive"],
+            "sentence_ids": [0, 1, 2],
+            "submittedBy": "self@example.com",
+            "is_public": True,
+        }, headers=auth_headers("self-user"))
+        c.post("/public/submit_model", json={
+            "benchmarkDatasetName": "self_improve_ds",
+            "modelName": "v2",
+            "modelResults": ["positive", "negative", "neutral"],
+            "sentence_ids": [0, 1, 2],
+            "submittedBy": "self@example.com",
+            "is_public": True,
+        }, headers=auth_headers("self-user"))
+
+    assert len(beaten_calls) == 0
