@@ -1081,6 +1081,8 @@ def _notify_displaced_champion(
                     prev_model = sub.get("model_name") or ""
                     prev_score = ev["score"]
 
+        backend_url = os.getenv("LEADERBOARD_URL", "http://localhost:3000")
+
         if (
             prev_email
             and "@" in prev_email
@@ -1088,6 +1090,7 @@ def _notify_displaced_champion(
             and new_score > prev_score
             and prev_email != new_submitted_by
         ):
+            # Notify the displaced champion (their submitted_by is already known)
             send_beaten(
                 prev_email,
                 your_model=prev_model,
@@ -1097,6 +1100,34 @@ def _notify_displaced_champion(
                 dataset_name=dataset_name,
                 metric=metric,
             )
+
+        if prev_score >= 0 and new_score > prev_score:
+            # Fan out to all "beaten" watchers who aren't the new submitter
+            try:
+                from blueprints.watches import get_active_watchers  # type: ignore
+            except ImportError:
+                try:
+                    from backend.blueprints.watches import get_active_watchers  # type: ignore
+                except ImportError:
+                    get_active_watchers = None
+
+            if get_active_watchers:
+                for watcher in get_active_watchers(dataset_name, "beaten"):
+                    if watcher["email"] == new_submitted_by:
+                        continue
+                    if watcher["email"] == prev_email:
+                        continue  # already notified above
+                    unsub = f"{backend_url}/public/watch/unsubscribe?token={watcher['token']}"
+                    send_beaten(
+                        watcher["email"],
+                        your_model=prev_model,
+                        your_score=prev_score,
+                        new_model=new_model_name,
+                        new_score=new_score,
+                        dataset_name=dataset_name,
+                        metric=metric,
+                        unsubscribe_url=unsub,
+                    )
     except Exception:
         logger.exception("beaten_notification_failed")
 

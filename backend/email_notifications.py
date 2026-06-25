@@ -408,10 +408,15 @@ def _beaten_notification_html(
     dataset_name: str,
     metric: str,
     frontend_url: str,
+    unsubscribe_url: str = "",
 ) -> str:
     your_score_str = f"{your_score:.4f}" if your_score < 1 else f"{your_score:.2f}"
     new_score_str = f"{new_score:.4f}" if new_score < 1 else f"{new_score:.2f}"
     leaderboard_url = f"{frontend_url}/leaderboard"
+    unsub_html = (
+        f' &middot; <a href="{unsubscribe_url}" style="color:#6b7280">Unsubscribe</a>'
+        if unsubscribe_url else ""
+    )
     return f"""<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><style>{_BASE_STYLE}
@@ -426,7 +431,7 @@ def _beaten_notification_html(
 <div class="wrap">
   <div class="header"><span class="logo">Anote Leaderboard</span></div>
   <div class="body">
-    <h2>Your model was surpassed on {dataset_name}</h2>
+    <h2>Rankings changed on {dataset_name}</h2>
     <p>
       A new submission just moved to <strong style="color:#fff">#1</strong> on
       <strong style="color:#fff">{dataset_name}</strong>.
@@ -437,16 +442,16 @@ def _beaten_notification_html(
         <span class="row-val new">{new_score_str}</span>
       </div>
       <div class="row">
-        <span class="row-label">Your model &mdash; {your_model}</span>
+        <span class="row-label">{your_model}</span>
         <span class="row-val">{your_score_str}</span>
       </div>
       <div class="score-metric" style="margin-top:8px">{metric.upper().replace("_", " ")}</div>
     </div>
-    <p>Think you can reclaim the top spot? Submit an updated version to challenge the new leader.</p>
+    <p>Think you can reclaim the top spot? Submit an updated model to challenge the new leader.</p>
     <a href="{leaderboard_url}" class="btn">View Leaderboard</a>
   </div>
   <div class="footer">
-    Anote AI · You received this because your model was previously ranked #1 on this dataset.<br>
+    Anote AI · You received this because you are watching this dataset{unsub_html}.<br>
     <a href="{frontend_url}" style="color:#6b7280">leaderboard.anote.ai</a>
   </div>
 </div>
@@ -462,18 +467,20 @@ def _beaten_notification_text(
     dataset_name: str,
     metric: str,
     frontend_url: str,
+    unsubscribe_url: str = "",
 ) -> str:
     your_score_str = f"{your_score:.4f}" if your_score < 1 else f"{your_score:.2f}"
     new_score_str = f"{new_score:.4f}" if new_score < 1 else f"{new_score:.2f}"
+    unsub_line = f"Unsubscribe: {unsubscribe_url}\n" if unsubscribe_url else ""
     return (
-        f"Anote Leaderboard — Your model was surpassed\n"
+        f"Anote Leaderboard — Rankings changed on {dataset_name}\n"
         f"{'=' * 42}\n\n"
         f"Dataset: {dataset_name}\n"
         f"Metric:  {metric.upper().replace('_', ' ')}\n\n"
         f"New #1  {new_model}: {new_score_str}\n"
-        f"Yours   {your_model}: {your_score_str}\n\n"
-        f"Submit an updated version to reclaim the top spot:\n"
-        f"{frontend_url}/leaderboard\n\n"
+        f"        {your_model}: {your_score_str}\n\n"
+        f"View leaderboard: {frontend_url}/leaderboard\n"
+        f"{unsub_line}\n"
         f"Anote AI · {frontend_url}"
     )
 
@@ -487,17 +494,18 @@ def send_beaten_notification(
     new_score: float,
     dataset_name: str,
     metric: str,
+    unsubscribe_url: str = "",
 ) -> None:
-    """Notify a submitter that their previously top-ranked model was surpassed.
+    """Notify a watcher that rankings changed on a dataset they are watching.
 
     No-op if email is not configured or to_email is not a valid address.
     """
     if not to_email or "@" not in to_email:
         return
     url = _frontend_url()
-    subject = f"[Anote] Your model was surpassed on {dataset_name}"
-    html = _beaten_notification_html(your_model, your_score, new_model, new_score, dataset_name, metric, url)
-    text = _beaten_notification_text(your_model, your_score, new_model, new_score, dataset_name, metric, url)
+    subject = f"[Anote] Rankings changed on {dataset_name}"
+    html = _beaten_notification_html(your_model, your_score, new_model, new_score, dataset_name, metric, url, unsubscribe_url)
+    text = _beaten_notification_text(your_model, your_score, new_model, new_score, dataset_name, metric, url, unsubscribe_url)
     _send_async(to_email, subject, html, text)
 
 

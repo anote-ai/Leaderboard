@@ -549,6 +549,7 @@ _STORE = {
     "evaluations": [],  # {submission_id, score, metric, evaluation_details?, created}
     "datasets": [],  # {name, task_type, evaluation_metric, reference_data}
     "submission_counts": {},  # {"submitter_id:YYYY-MM-DD": count}
+    "watches": [],  # {id, dataset_name, email, watch_type, token, active, created}
 }
 
 # In-process async eval jobs (optional ``async: true`` on submit); not durable across restarts.

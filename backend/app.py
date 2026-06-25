@@ -13,9 +13,10 @@ from blueprints import eval as _eval
 from blueprints import leaderboard as _leaderboard
 from blueprints import metrics as _metrics
 from blueprints import submissions as _submissions
+from blueprints import watches as _watches
 
 
-_BLUEPRINT_MODULES = [_leaderboard, _submissions, _eval, _auth, _admin, _metrics, _dataset_requests]
+_BLUEPRINT_MODULES = [_leaderboard, _submissions, _eval, _auth, _admin, _metrics, _dataset_requests, _watches]
 
 
 def _allowed_origins() -> list[str]:
