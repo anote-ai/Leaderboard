@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import TaskAdvancedMetricsPanel from './TaskAdvancedMetricsPanel';
+import WatchDialog from './WatchDialog';
 
 const API_BASE = process.env.REACT_APP_API_BASE || process.env.REACT_APP_API_ENDPOINT || 'http://localhost:5001';
 
@@ -32,6 +33,7 @@ const DatasetDetails = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [data, setData] = useState(null);
+  const [watchOpen, setWatchOpen] = useState(false);
 
   const decodedName = React.useMemo(() => {
     if (!name) return '';
@@ -93,9 +95,21 @@ const DatasetDetails = () => {
 
   return (
     <div className="flex flex-col items-center justify-start min-h-screen bg-gray-900 pb-24 mx-3">
-      <div className="w-full max-w-5xl mt-6 flex justify-end">
+      <div className="w-full max-w-5xl mt-6 flex justify-end gap-2">
+        {data?.dataset && (
+          <button
+            type="button"
+            onClick={() => setWatchOpen(true)}
+            className="px-3 py-1 rounded-md border border-gray-700 text-gray-300 hover:bg-gray-700/40 flex items-center gap-1"
+          >
+            <span>🔔</span> Watch
+          </button>
+        )}
         <button type="button" onClick={() => navigate('/')} className="px-3 py-1 rounded-md border border-gray-700 text-gray-300 hover:bg-gray-700/40">× Close</button>
       </div>
+      {watchOpen && data?.dataset && (
+        <WatchDialog datasetName={data.dataset.name} onClose={() => setWatchOpen(false)} />
+      )}
       <div className="w-full max-w-5xl bg-gray-900/70 rounded-xl border border-gray-800 p-6 mt-2">
         {loading ? (
           <div className="text-gray-300">Loading…</div>
