@@ -72,9 +72,12 @@ export default function SubmissionExamples() {
 
   const total = data?.total ?? 0;
   const examples = data?.examples ?? [];
-  const correctCount = data?.examples?.filter((e) => e.correct === true).length ?? 0;
   const totalPages = Math.ceil(total / PAGE_SIZE);
   const currentPage = Math.floor(offset / PAGE_SIZE) + 1;
+
+  // Global stats come from the backend (computed before pagination and filtering).
+  const globalStats = data?.stats ?? null;
+  const globalAccuracy = globalStats?.accuracy ?? null; // null means unscored task
 
   const filterTabs = [
     { value: "all", label: "All" },
@@ -144,20 +147,32 @@ export default function SubmissionExamples() {
             {/* Stats row */}
             <div className="flex flex-wrap items-center gap-4 mb-5">
               <div className="rounded-xl border border-gray-800 bg-[#0d1421] px-4 py-3 flex flex-col items-center min-w-[80px]">
-                <span className="text-2xl font-bold text-white tabular-nums">{total}</span>
+                <span className="text-2xl font-bold text-white tabular-nums">
+                  {globalStats ? globalStats.total_examples : total}
+                </span>
                 <span className="text-[11px] text-gray-500 mt-0.5">total</span>
               </div>
-              {total > 0 && data.examples.some((e) => e.correct !== null && e.correct !== undefined) && (
+              {globalStats && globalStats.scored_examples > 0 && (
                 <>
                   <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 flex flex-col items-center min-w-[80px]">
                     <span className="text-2xl font-bold text-emerald-300 tabular-nums">
-                      {filter === "all"
-                        ? `${((data.examples.filter((e) => e.correct === true).length / data.examples.filter((e) => e.correct !== null).length) * 100).toFixed(0)}%`
-                        : correctCount}
+                      {globalAccuracy !== null
+                        ? `${(globalAccuracy * 100).toFixed(1)}%`
+                        : "N/A"}
                     </span>
-                    <span className="text-[11px] text-emerald-400/70 mt-0.5">
-                      {filter === "all" ? "accuracy (this page)" : "correct"}
+                    <span className="text-[11px] text-emerald-400/70 mt-0.5">accuracy</span>
+                  </div>
+                  <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3 flex flex-col items-center min-w-[80px]">
+                    <span className="text-2xl font-bold text-emerald-300 tabular-nums">
+                      {globalStats.correct_examples}
                     </span>
+                    <span className="text-[11px] text-emerald-400/70 mt-0.5">correct</span>
+                  </div>
+                  <div className="rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3 flex flex-col items-center min-w-[80px]">
+                    <span className="text-2xl font-bold text-red-300 tabular-nums">
+                      {globalStats.wrong_examples}
+                    </span>
+                    <span className="text-[11px] text-red-400/70 mt-0.5">wrong</span>
                   </div>
                 </>
               )}

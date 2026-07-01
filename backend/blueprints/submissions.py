@@ -854,6 +854,21 @@ def submission_examples(submission_id: int):
         det = {}
 
     all_items: List[Dict[str, Any]] = det.get("item_results") or (det.get("detailed_scores") or {}).get("item_results") or []
+
+    # Compute global stats from the full unfiltered item list before pagination.
+    _total_examples = len(all_items)
+    _scored = [it for it in all_items if it.get("correct") is not None]
+    _scored_count = len(_scored)
+    _correct_count = sum(1 for it in _scored if it.get("correct") is True)
+    _wrong_count = _scored_count - _correct_count
+    stats = {
+        "total_examples": _total_examples,
+        "scored_examples": _scored_count,
+        "correct_examples": _correct_count,
+        "wrong_examples": _wrong_count,
+        "accuracy": round(_correct_count / _scored_count, 6) if _scored_count > 0 else None,
+    }
+
     if filter_by == "correct":
         all_items = [it for it in all_items if it.get("correct") is True]
     elif filter_by == "wrong":
@@ -869,6 +884,7 @@ def submission_examples(submission_id: int):
         "offset": offset,
         "limit": limit,
         "examples": page,
+        "stats": stats,
     })
 
 
