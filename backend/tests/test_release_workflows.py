@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import time
 
 try:
@@ -209,3 +210,157 @@ def test_run_llm_submission_validates_dataset_and_provider_failure(monkeypatch):
             time.sleep(0.05)
         assert final_body["status"] == "failed"
         assert "Unknown provider" in final_body["error"]
+
+
+# ---------------------------------------------------------------------------
+# Prediction Inspector — /public/submissions/<id>/examples global stats
+# ---------------------------------------------------------------------------
+
+def _seed_dataset_with_n_items(n: int, name: str = "stats_dataset") -> None:
+    """Seed a classification dataset with n items."""
+    app_module._STORE["datasets"].append({
+        "name": name,
+        "task_type": "text_classification",
+        "evaluation_metric": "accuracy",
+        "reference_data": {
+            "source_texts": [f"text {i}" for i in range(n)],
+            "labels": ["pos" if i % 2 == 0 else "neg" for i in range(n)],
+            "label_names": ["pos", "neg"],
+        },
+    })
+
+
+def _get_examples(client, submission_id: int, owner: str, **params):
+    qs = "&".join(f"{k}={v}" for k, v in params.items())
+    url = f"/public/submissions/{submission_id}/examples" + (f"?{qs}" if qs else "")
+    return client.get(url, headers=auth_headers(owner))
+
+
+def test_examples_global_stats_mixed_correct_wrong(monkeypatch):
+    """stats reflects the full unfiltered item list even when a page filter is applied."""
+    monkeypatch.setenv("DISABLE_RATE_LIMIT", "1")
+    monkeypatch.setenv("LEADERBOARD_JWT_SECRET", "dev-secret")
+    monkeypatch.setattr(app_module, "get_db_connection", lambda: (None, None))
+    reset_store()
+    _seed_dataset_with_n_items(4, "mixed_dataset")
+
+    with app.test_client() as c:
+        # Submit: first two correct, last two wrong
+        resp = c.post("/public/submit_model", json={
+            "benchmarkDatasetName": "mixed_dataset",
+            "modelName": "mixed-model",
+            "modelResults": ["pos", "neg", "neg", "pos"],  # ids 0,1 correct; 2,3 wrong
+            "sentence_ids": [0, 1, 2, 3],
+        }, headers=auth_headers("stats-owner"))
+        assert resp.status_code == 200
+        sid = resp.get_json()["submission_id"]
+
+        # Filter=all, page 1
+        r = _get_examples(c, sid, "stats-owner", filter="all", offset=0, limit=25)
+        assert r.status_code == 200
+        body = r.get_json()
+
+        stats = body["stats"]
+        assert stats["total_examples"] == 4
+        assert stats["scored_examples"] == 4
+        assert stats["correct_examples"] == 2
+        assert stats["wrong_examples"] == 2
+        assert abs(stats["accuracy"] - 0.5) < 1e-4
+
+        # Filter=correct should still return the same global stats
+        r2 = _get_examples(c, sid, "stats-owner", filter="correct", offset=0, limit=25)
+        assert r2.status_code == 200
+        body2 = r2.get_json()
+        stats2 = body2["stats"]
+        assert stats2["correct_examples"] == 2
+        assert stats2["wrong_examples"] == 2
+        assert abs(stats2["accuracy"] - 0.5) < 1e-4
+        # But the returned examples list should only contain correct items
+        assert all(ex["correct"] is True for ex in body2["examples"])
+
+
+def test_examples_global_stats_all_null_correct(monkeypatch):
+    """When no item has a correct field (e.g. translation task), accuracy must be null."""
+    monkeypatch.setenv("DISABLE_RATE_LIMIT", "1")
+    monkeypatch.setenv("LEADERBOARD_JWT_SECRET", "dev-secret")
+    monkeypatch.setattr(app_module, "get_db_connection", lambda: (None, None))
+    reset_store()
+
+    # Manually inject a submission with item_results where correct=None (translation-style)
+    ds = {
+        "name": "trans_dataset",
+        "task_type": "translation",
+        "evaluation_metric": "bleu",
+        "reference_data": {
+            "source_texts": ["hello", "world"],
+            "reference_translations": ["hola", "mundo"],
+        },
+    }
+    app_module._STORE["datasets"].append(ds)
+
+    # Inject submission + evaluation directly to bypass actual BLEU scoring
+    app_module._STORE["submissions"].append({
+        "id": 999,
+        "benchmark_dataset_id": None,
+        "model_name": "trans-model",
+        "submitted_by": "trans-owner",
+        "submitter_id": "trans-owner",
+        "model_results": ["hola", "mundo"],
+        "is_public": True,
+        "created": "2024-01-01T00:00:00",
+    })
+    app_module._STORE["evaluations"].append({
+        "submission_id": 999,
+        "evaluation_details": json.dumps({
+            "item_results": [
+                {"id": "0", "ground_truth": "hola", "prediction": "hola", "correct": None},
+                {"id": "1", "ground_truth": "mundo", "prediction": "mundo", "correct": None},
+            ]
+        }),
+    })
+
+    with app.test_client() as c:
+        r = _get_examples(c, 999, "trans-owner", filter="all", offset=0, limit=25)
+        assert r.status_code == 200
+        body = r.get_json()
+
+    stats = body["stats"]
+    assert stats["total_examples"] == 2
+    assert stats["scored_examples"] == 0
+    assert stats["correct_examples"] == 0
+    assert stats["accuracy"] is None  # must be null, not NaN or Infinity
+
+
+def test_examples_global_stats_stable_across_pages(monkeypatch):
+    """Global stats are identical regardless of which page (offset) is fetched."""
+    monkeypatch.setenv("DISABLE_RATE_LIMIT", "1")
+    monkeypatch.setenv("LEADERBOARD_JWT_SECRET", "dev-secret")
+    monkeypatch.setattr(app_module, "get_db_connection", lambda: (None, None))
+    reset_store()
+    _seed_dataset_with_n_items(4, "paged_dataset")
+
+    with app.test_client() as c:
+        resp = c.post("/public/submit_model", json={
+            "benchmarkDatasetName": "paged_dataset",
+            "modelName": "paged-model",
+            "modelResults": ["pos", "neg", "pos", "neg"],  # all correct
+            "sentence_ids": [0, 1, 2, 3],
+        }, headers=auth_headers("page-owner"))
+        assert resp.status_code == 200
+        sid = resp.get_json()["submission_id"]
+
+        # Page 1 (items 0-1)
+        r1 = _get_examples(c, sid, "page-owner", filter="all", offset=0, limit=2)
+        assert r1.status_code == 200
+        stats1 = r1.get_json()["stats"]
+
+        # Page 2 (items 2-3)
+        r2 = _get_examples(c, sid, "page-owner", filter="all", offset=2, limit=2)
+        assert r2.status_code == 200
+        stats2 = r2.get_json()["stats"]
+
+        # Global stats must be identical for both pages
+        assert stats1 == stats2
+        assert stats1["total_examples"] == 4
+        assert stats1["scored_examples"] == 4
+        assert abs(stats1["accuracy"] - 1.0) < 1e-4
