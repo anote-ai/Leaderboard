@@ -953,10 +953,16 @@ def export_leaderboard():
         next_cur = payload.get("next_cursor")
         if not next_cur:
             break
-    if export_format == "json":
-        return jsonify(rows)
-    if export_format != "csv":
+    if export_format not in ("json", "csv"):
         return jsonify({"success": False, "error": "format must be csv or json"}), 400
+
+    if export_format == "json":
+        filename = f"leaderboard-{dataset_name or 'all'}.json"
+        return Response(
+            json.dumps(rows, ensure_ascii=False, default=str, indent=2),
+            mimetype="application/json",
+            headers={"Content-Disposition": f"attachment; filename={filename}"},
+        )
 
     out = StringIO()
     fieldnames = [

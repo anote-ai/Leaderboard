@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import ReactGA from 'react-ga4';
 import TaskAdvancedMetricsPanel from './TaskAdvancedMetricsPanel';
 
 const API_BASE = process.env.REACT_APP_API_BASE || process.env.REACT_APP_API_ENDPOINT || 'http://localhost:5001';
@@ -20,6 +21,59 @@ function MetricCard({ metricKey, metric }) {
       )}
       {metric.when_to_use && (
         <div className="text-gray-500 text-xs mt-2">When to use: {metric.when_to_use}</div>
+      )}
+    </div>
+  );
+}
+
+function ExportMenu({ datasetName }) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const handleClickOutside = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [open]);
+
+  const handleExport = (format) => {
+    setOpen(false);
+    ReactGA.event({ category: 'Leaderboard', action: 'export_leaderboard', label: `${datasetName}:${format}` });
+    const url = new URL(`${API_BASE}/public/export/leaderboard`);
+    url.searchParams.set('dataset', datasetName);
+    url.searchParams.set('format', format);
+    window.location.href = url.toString();
+  };
+
+  return (
+    <div className="relative" ref={containerRef}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="px-3 py-1 rounded-md border border-gray-700 text-gray-300 hover:bg-gray-700/40 flex items-center gap-1"
+      >
+        <span>⬇</span> Export
+      </button>
+      {open && (
+        <div className="absolute right-0 mt-1 w-36 bg-[#0d1421] border border-gray-700 rounded-lg shadow-2xl z-10 overflow-hidden">
+          <button
+            type="button"
+            onClick={() => handleExport('csv')}
+            className="w-full text-left px-3 py-2 text-sm text-gray-200 hover:bg-gray-700/40"
+          >
+            Export as CSV
+          </button>
+          <button
+            type="button"
+            onClick={() => handleExport('json')}
+            className="w-full text-left px-3 py-2 text-sm text-gray-200 hover:bg-gray-700/40"
+          >
+            Export as JSON
+          </button>
+        </div>
       )}
     </div>
   );
@@ -93,7 +147,8 @@ const DatasetDetails = () => {
 
   return (
     <div className="flex flex-col items-center justify-start min-h-screen bg-gray-900 pb-24 mx-3">
-      <div className="w-full max-w-5xl mt-6 flex justify-end">
+      <div className="w-full max-w-5xl mt-6 flex justify-end gap-2">
+        {ds && <ExportMenu datasetName={ds.name} />}
         <button type="button" onClick={() => navigate('/')} className="px-3 py-1 rounded-md border border-gray-700 text-gray-300 hover:bg-gray-700/40">× Close</button>
       </div>
       <div className="w-full max-w-5xl bg-gray-900/70 rounded-xl border border-gray-800 p-6 mt-2">
