@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { headToHeadPath } from '../../constants/RouteConstants';
 
 const API_BASE = process.env.REACT_APP_API_BASE || process.env.REACT_APP_API_ENDPOINT || 'http://localhost:5001';
 
@@ -85,7 +86,7 @@ function ModelAutocomplete({ value, index, availableModels, color, onChange, onR
   );
 }
 
-function ComparisonTable({ models, comparisons }) {
+function ComparisonTable({ models, comparisons, onInspect }) {
   const winCounts = Object.fromEntries(models.map(m => [m, 0]));
   const missing = Object.fromEntries(models.map(m => [m, 0]));
 
@@ -130,6 +131,9 @@ function ComparisonTable({ models, comparisons }) {
               ))}
               {exactlyTwo && (
                 <th className="text-right px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-gray-500 w-20">Δ</th>
+              )}
+              {exactlyTwo && (
+                <th className="px-3 py-3 w-10" aria-label="Inspect" />
               )}
             </tr>
           </thead>
@@ -182,6 +186,18 @@ function ComparisonTable({ models, comparisons }) {
                       ) : (
                         <span className="text-gray-600">tie</span>
                       )}
+                    </td>
+                  )}
+                  {exactlyTwo && (
+                    <td className="px-3 py-3 text-right">
+                      <button
+                        type="button"
+                        title="Inspect per-example disagreements"
+                        onClick={() => onInspect(row.dataset_name)}
+                        className="text-gray-600 hover:text-[#defe47] transition-colors text-base leading-none"
+                      >
+                        ⌕
+                      </button>
                     </td>
                   )}
                 </tr>
@@ -352,7 +368,17 @@ const ModelComparison = () => {
 
         {/* Results */}
         {!loading && comparisons.length > 0 && (
-          <ComparisonTable models={resultModels} comparisons={comparisons} />
+          <ComparisonTable
+            models={resultModels}
+            comparisons={comparisons}
+            onInspect={(datasetName) => {
+              const params = new URLSearchParams({
+                models: resultModels.join(','),
+                dataset: datasetName,
+              });
+              navigate(`${headToHeadPath}?${params.toString()}`);
+            }}
+          />
         )}
 
         {/* Helper: delta legend when exactly 2 models */}
@@ -360,6 +386,7 @@ const ModelComparison = () => {
           <div className="mt-3 flex items-center gap-4 text-xs text-gray-600 px-1">
             <span><span className="text-[#defe47]">+x.xxxx</span> = M1 wins by that margin</span>
             <span><span className="text-[#28b2fb]">−x.xxxx</span> = M2 wins by that margin</span>
+            <span><span className="text-[#defe47]">⌕</span> = inspect per-example disagreements</span>
           </div>
         )}
       </div>
