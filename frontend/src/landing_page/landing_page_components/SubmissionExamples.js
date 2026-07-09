@@ -1,9 +1,10 @@
 import { useEffect, useState, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { getLeaderboardJwt } from "../../utils/leaderboardAuth";
 import { loginPath } from "../../constants/RouteConstants";
 
-const PAGE_SIZE = 25;
+const PAGE_SIZES = [25, 50, 100];
+const FILTERS = ["all", "correct", "wrong"];
 
 function CorrectBadge({ correct }) {
   if (correct === true) return (
@@ -26,55 +27,136 @@ function CorrectBadge({ correct }) {
 export default function SubmissionExamples() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const API_BASE = process.env.REACT_APP_API_BASE || process.env.REACT_APP_API_ENDPOINT || "http://localhost:5001";
 
-  const [filter, setFilter] = useState("all");
-  const [offset, setOffset] = useState(0);
+  // View state lives in the URL so any view is linkable/bookmarkable.
+  const shareToken = searchParams.get("share") || "";
+  const rawFilter = searchParams.get("filter") || "all";
+  const filter = FILTERS.includes(rawFilter) ? rawFilter : "all";
+  const rawSize = parseInt(searchParams.get("size") || "", 10);
+  const pageSize = PAGE_SIZES.includes(rawSize) ? rawSize : PAGE_SIZES[0];
+  const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10) || 1);
+  const offset = (page - 1) * pageSize;
+  const isSharedView = Boolean(shareToken);
+
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [exporting, setExporting] = useState(false);
+  const [shareState, setShareState] = useState("idle"); // idle | working | copied
 
-  const fetchExamples = useCallback(async (f, o) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const jwt = getLeaderboardJwt();
-      const headers = jwt ? { Authorization: `Bearer ${jwt}` } : {};
-      const url = new URL(`${API_BASE}/public/submissions/${id}/examples`);
-      url.searchParams.set("filter", f);
-      url.searchParams.set("offset", o);
-      url.searchParams.set("limit", PAGE_SIZE);
-      const res = await fetch(url.toString(), { headers });
-      const json = await res.json();
-      if (res.status === 401) { setError("auth"); return; }
-      if (res.status === 403) { setError("forbidden"); return; }
-      if (!res.ok || json.success === false) {
-        setError(json.error || "Failed to load examples");
-        return;
-      }
-      setData(json);
-    } catch (e) {
-      setError(e.message || "Network error");
-    } finally {
-      setLoading(false);
-    }
-  }, [API_BASE, id]);
+  const updateParams = useCallback((updates) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      Object.entries(updates).forEach(([k, v]) => {
+        if (v === null || v === undefined || v === "") next.delete(k);
+        else next.set(k, String(v));
+      });
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
 
   useEffect(() => {
-    setOffset(0);
-    fetchExamples(filter, 0);
-  }, [filter, fetchExamples]);
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const jwt = getLeaderboardJwt();
+        const headers = !shareToken && jwt ? { Authorization: `Bearer ${jwt}` } : {};
+        const url = new URL(`${API_BASE}/public/submissions/${id}/examples`);
+        url.searchParams.set("filter", filter);
+        url.searchParams.set("offset", offset);
+        url.searchParams.set("limit", pageSize);
+        if (shareToken) url.searchParams.set("share", shareToken);
+        const res = await fetch(url.toString(), { headers });
+        const json = await res.json();
+        if (cancelled) return;
+        if (res.status === 401) { setError(shareToken ? "share-invalid" : "auth"); return; }
+        if (res.status === 403) { setError("forbidden"); return; }
+        if (!res.ok || json.success === false) {
+          setError(json.error || "Failed to load examples");
+          return;
+        }
+        setData(json);
+      } catch (e) {
+        if (!cancelled) setError(e.message || "Network error");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [API_BASE, id, filter, offset, pageSize, shareToken]);
 
-  const handlePage = (newOffset) => {
-    setOffset(newOffset);
-    fetchExamples(filter, newOffset);
+  const setFilter = (f) => updateParams({ filter: f === "all" ? null : f, page: null });
+  const setPage = (p) => updateParams({ page: p <= 1 ? null : p });
+  const setPageSize = (s) => updateParams({ size: s === PAGE_SIZES[0] ? null : s, page: null });
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const url = new URL(`${API_BASE}/public/submissions/${id}/examples/export`);
+      url.searchParams.set("filter", filter);
+      if (shareToken) url.searchParams.set("share", shareToken);
+      const jwt = getLeaderboardJwt();
+      const headers = !shareToken && jwt ? { Authorization: `Bearer ${jwt}` } : {};
+      const res = await fetch(url.toString(), { headers });
+      if (!res.ok) throw new Error(`Export failed (${res.status})`);
+      const blob = await res.blob();
+      const objectUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = objectUrl;
+      a.download = `submission-${id}-examples-${filter}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(objectUrl);
+    } catch (e) {
+      window.alert(e.message || "Export failed");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleShare = async () => {
+    setShareState("working");
+    try {
+      const jwt = getLeaderboardJwt();
+      const res = await fetch(`${API_BASE}/public/submissions/${id}/share`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}),
+        },
+        body: JSON.stringify({}),
+      });
+      const json = await res.json();
+      if (!res.ok || json.success === false) {
+        throw new Error(json.error || `Could not create share link (${res.status})`);
+      }
+      const shareUrl = new URL(window.location.href);
+      shareUrl.searchParams.set("share", json.share_token);
+      shareUrl.searchParams.delete("page");
+      try {
+        await navigator.clipboard.writeText(shareUrl.toString());
+        setShareState("copied");
+        setTimeout(() => setShareState("idle"), 2500);
+      } catch {
+        setShareState("idle");
+        window.prompt("Copy this read-only share link:", shareUrl.toString());
+      }
+    } catch (e) {
+      setShareState("idle");
+      window.alert(e.message || "Could not create share link");
+    }
   };
 
   const total = data?.total ?? 0;
   const examples = data?.examples ?? [];
   const correctCount = data?.examples?.filter((e) => e.correct === true).length ?? 0;
-  const totalPages = Math.ceil(total / PAGE_SIZE);
-  const currentPage = Math.floor(offset / PAGE_SIZE) + 1;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const currentPage = Math.min(page, totalPages);
 
   const filterTabs = [
     { value: "all", label: "All" },
@@ -82,11 +164,14 @@ export default function SubmissionExamples() {
     { value: "wrong", label: "Wrong" },
   ];
 
+  const actionBtn = "px-3.5 py-1.5 rounded-lg border border-gray-700 text-xs font-semibold text-gray-300 hover:text-white hover:border-gray-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors";
+  const pageBtn = "px-3 py-1.5 rounded-lg border border-gray-700 text-xs text-gray-400 hover:text-white hover:border-gray-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors";
+
   return (
     <div className="flex flex-col items-center min-h-screen bg-[#111827] pb-24 px-4 text-gray-100">
       <div className="w-full max-w-5xl mt-10">
         {/* Header */}
-        <div className="flex items-center gap-3 mb-6">
+        <div className="flex items-center gap-3 mb-6 flex-wrap">
           <button
             type="button"
             onClick={() => navigate(-1)}
@@ -99,6 +184,11 @@ export default function SubmissionExamples() {
           <span className="text-xs text-gray-500 font-mono bg-gray-800/60 px-2 py-0.5 rounded">
             submission #{id}
           </span>
+          {isSharedView && (
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-sky-500/15 text-sky-300 border border-sky-400/30">
+              Read-only shared view
+            </span>
+          )}
         </div>
 
         {/* Auth error */}
@@ -116,6 +206,14 @@ export default function SubmissionExamples() {
           </div>
         )}
 
+        {/* Invalid or expired share link */}
+        {error === "share-invalid" && (
+          <div className="rounded-xl border border-yellow-500/40 bg-yellow-500/10 px-5 py-8 text-center">
+            <p className="text-yellow-100 font-semibold">This share link is invalid or has expired.</p>
+            <p className="text-yellow-300/70 text-sm mt-1">Ask the submitter for a fresh link.</p>
+          </div>
+        )}
+
         {/* Forbidden */}
         {error === "forbidden" && (
           <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-5 py-8 text-center">
@@ -125,7 +223,7 @@ export default function SubmissionExamples() {
         )}
 
         {/* Generic error */}
-        {error && error !== "auth" && error !== "forbidden" && (
+        {error && !["auth", "forbidden", "share-invalid"].includes(error) && (
           <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-red-200 text-sm">
             {error}
           </div>
@@ -163,23 +261,48 @@ export default function SubmissionExamples() {
               )}
             </div>
 
-            {/* Filter tabs */}
-            <div className="flex gap-2 mb-4">
-              {filterTabs.map((t) => (
+            {/* Filter tabs + actions */}
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+              <div className="flex gap-2">
+                {filterTabs.map((t) => (
+                  <button
+                    key={t.value}
+                    type="button"
+                    onClick={() => setFilter(t.value)}
+                    className={[
+                      "px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-colors",
+                      filter === t.value
+                        ? "bg-[#defe47]/10 border-[#defe47]/50 text-[#defe47]"
+                        : "bg-transparent border-gray-700 text-gray-400 hover:border-gray-500 hover:text-gray-300",
+                    ].join(" ")}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-2">
                 <button
-                  key={t.value}
                   type="button"
-                  onClick={() => setFilter(t.value)}
-                  className={[
-                    "px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-colors",
-                    filter === t.value
-                      ? "bg-[#defe47]/10 border-[#defe47]/50 text-[#defe47]"
-                      : "bg-transparent border-gray-700 text-gray-400 hover:border-gray-500 hover:text-gray-300",
-                  ].join(" ")}
+                  onClick={handleExport}
+                  disabled={exporting || total === 0}
+                  className={actionBtn}
                 >
-                  {t.label}
+                  {exporting ? "Exporting…" : "⬇ Export CSV"}
                 </button>
-              ))}
+                {!isSharedView && (
+                  <button
+                    type="button"
+                    onClick={handleShare}
+                    disabled={shareState === "working"}
+                    className={[
+                      actionBtn,
+                      shareState === "copied" ? "border-emerald-400/50 text-emerald-300" : "",
+                    ].join(" ")}
+                  >
+                    {shareState === "copied" ? "✓ Link copied" : shareState === "working" ? "Creating…" : "🔗 Share"}
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Table */}
@@ -247,31 +370,61 @@ export default function SubmissionExamples() {
                 </div>
 
                 {/* Pagination */}
-                {totalPages > 1 && (
-                  <div className="flex items-center justify-between px-4 py-3 border-t border-gray-800/40">
+                <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t border-gray-800/40">
+                  <div className="flex items-center gap-3">
                     <span className="text-xs text-gray-500">
                       Page {currentPage} of {totalPages} · {total} examples
                     </span>
+                    <label className="flex items-center gap-1.5 text-xs text-gray-500">
+                      Rows
+                      <select
+                        value={pageSize}
+                        onChange={(e) => setPageSize(Number(e.target.value))}
+                        className="bg-[#111827] border border-gray-700 rounded-lg px-2 py-1 text-xs text-gray-300 focus:outline-none focus:border-gray-500"
+                      >
+                        {PAGE_SIZES.map((s) => (
+                          <option key={s} value={s}>{s}</option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                  {totalPages > 1 && (
                     <div className="flex gap-2">
                       <button
                         type="button"
-                        disabled={offset === 0}
-                        onClick={() => handlePage(Math.max(0, offset - PAGE_SIZE))}
-                        className="px-3 py-1.5 rounded-lg border border-gray-700 text-xs text-gray-400 hover:text-white hover:border-gray-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                        disabled={currentPage <= 1}
+                        onClick={() => setPage(1)}
+                        className={pageBtn}
+                      >
+                        « First
+                      </button>
+                      <button
+                        type="button"
+                        disabled={currentPage <= 1}
+                        onClick={() => setPage(currentPage - 1)}
+                        className={pageBtn}
                       >
                         ← Prev
                       </button>
                       <button
                         type="button"
-                        disabled={offset + PAGE_SIZE >= total}
-                        onClick={() => handlePage(offset + PAGE_SIZE)}
-                        className="px-3 py-1.5 rounded-lg border border-gray-700 text-xs text-gray-400 hover:text-white hover:border-gray-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                        disabled={currentPage >= totalPages}
+                        onClick={() => setPage(currentPage + 1)}
+                        className={pageBtn}
                       >
                         Next →
                       </button>
+                      <button
+                        type="button"
+                        disabled={currentPage >= totalPages}
+                        onClick={() => setPage(totalPages)}
+                        className={pageBtn}
+                      >
+                        Last »
+                      </button>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             )}
           </>

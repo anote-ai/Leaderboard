@@ -201,6 +201,42 @@ def openapi_spec():
                     "parameters": [{"name": "submission_id", "in": "path", "required": True, "schema": {"type": "integer"}}],
                 }
             },
+            "/public/submissions/{submission_id}/examples": {
+                "get": {
+                    "summary": "Per-example prediction results (owner or share token)",
+                    "parameters": [
+                        {"name": "submission_id", "in": "path", "required": True, "schema": {"type": "integer"}},
+                        {"name": "filter", "in": "query", "schema": {"type": "string", "enum": ["all", "correct", "wrong"], "default": "all"}},
+                        {"name": "offset", "in": "query", "schema": {"type": "integer", "default": 0}},
+                        {"name": "limit", "in": "query", "schema": {"type": "integer", "default": 100}},
+                        {"name": "share", "in": "query", "schema": {"type": "string"}, "description": "Read-only share token minted via POST /public/submissions/{submission_id}/share"},
+                    ],
+                }
+            },
+            "/public/submissions/{submission_id}/examples/export": {
+                "get": {
+                    "summary": "Download per-example results as CSV (owner or share token)",
+                    "parameters": [
+                        {"name": "submission_id", "in": "path", "required": True, "schema": {"type": "integer"}},
+                        {"name": "filter", "in": "query", "schema": {"type": "string", "enum": ["all", "correct", "wrong"], "default": "all"}},
+                        {"name": "share", "in": "query", "schema": {"type": "string"}},
+                    ],
+                }
+            },
+            "/public/submissions/{submission_id}/share": {
+                "post": {
+                    "summary": "Mint a read-only share token for a submission's examples (owner only)",
+                    "security": [{"ApiKeyAuth": []}, {"BearerAuth": []}],
+                    "parameters": [{"name": "submission_id", "in": "path", "required": True, "schema": {"type": "integer"}}],
+                    "requestBody": {
+                        "required": False,
+                        "content": {"application/json": {"schema": {
+                            "type": "object",
+                            "properties": {"expires_in_days": {"type": "integer", "minimum": 1, "maximum": 90, "default": 30}},
+                        }}},
+                    },
+                }
+            },
             "/public/get_leaderboard": {
                 "get": {
                     "summary": "Get leaderboard rows",
