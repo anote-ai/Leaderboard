@@ -784,27 +784,67 @@ def submission_detail(submission_id: int):
     })
 
 
-@bp.get("/public/submissions/<int:submission_id>/examples")
-def submission_examples(submission_id: int):
-    """Per-example prediction results for a submission.
+_SHARE_TOKEN_SCOPE = "submission-examples"
+_SHARE_DEFAULT_DAYS = 30
+_SHARE_MAX_DAYS = 90
 
-    Query params:
-      filter  = all | correct | wrong   (default: all)
-      offset  = int (default 0)
-      limit   = int 1–500 (default 100)
-    """
-    sub, err = _require_submission_owner(request, submission_id)
-    if err:
-        return err
 
-    filter_by = request.args.get("filter", "all").lower()
-    if filter_by not in ("all", "correct", "wrong"):
-        return jsonify({"success": False, "error": "filter must be all, correct, or wrong"}), 400
+def _mint_share_token(submission_id: int, expires_in_days: int) -> Optional[str]:
+    """HS256 token granting read access to one submission's examples. None if no secret."""
+    secret = os.getenv("LEADERBOARD_JWT_SECRET", "").strip()
+    if not secret:
+        return None
+    import jwt as pyjwt
+
+    now = datetime.now(timezone.utc)
+    return pyjwt.encode(
+        {
+            "share_submission_id": submission_id,
+            "scope": _SHARE_TOKEN_SCOPE,
+            "iat": now,
+            "exp": now + timedelta(days=expires_in_days),
+        },
+        secret,
+        algorithm="HS256",
+    )
+
+
+def _share_token_grants(request, submission_id: int) -> bool:
+    """True when ``?share=`` carries a valid, unexpired token for this submission."""
+    token = (request.args.get("share") or "").strip()
+    if not token:
+        return False
+    secret = os.getenv("LEADERBOARD_JWT_SECRET", "").strip()
+    if not secret:
+        return False
     try:
-        offset = max(0, int(request.args.get("offset", 0)))
-        limit = min(500, max(1, int(request.args.get("limit", 100))))
-    except (ValueError, TypeError):
-        return jsonify({"success": False, "error": "offset and limit must be integers"}), 400
+        import jwt as pyjwt
+
+        claims = pyjwt.decode(
+            token,
+            secret,
+            algorithms=["HS256"],
+            options={"require": ["exp"], "verify_exp": True},
+        )
+    except Exception:
+        return False
+    return (
+        claims.get("scope") == _SHARE_TOKEN_SCOPE
+        and claims.get("share_submission_id") == submission_id
+    )
+
+
+def _load_submission_examples(request, submission_id: int):
+    """Authorize (owner or share token) and load item_results.
+
+    Returns (items, error_response); error_response is None when access is granted.
+    """
+    shared_view = _share_token_grants(request, submission_id)
+    sub = None
+    if not shared_view:
+        sub, err = _require_submission_owner(request, submission_id)
+        if err:
+            return None, err
 
     conn, cursor = get_db_connection()
     if conn and cursor:
@@ -833,18 +873,18 @@ def submission_examples(submission_id: int):
             except Exception:
                 pass
         if not r:
-            return jsonify({"success": False, "error": "Not found"}), 404
+            return None, (jsonify({"success": False, "error": "Not found"}), 404)
         owner = r.get("submitter_id") or r.get("submitted_by") or ""
-        if owner != sub:
-            return jsonify({"success": False, "error": "Forbidden"}), 403
+        if not shared_view and owner != sub:
+            return None, (jsonify({"success": False, "error": "Forbidden"}), 403)
         raw_det = r.get("evaluation_details") or "{}"
     else:
         sub_row = next((s for s in _STORE["submissions"] if s["id"] == submission_id), None)
         if not sub_row:
-            return jsonify({"success": False, "error": "Not found"}), 404
+            return None, (jsonify({"success": False, "error": "Not found"}), 404)
         owner = sub_row.get("submitter_id") or sub_row.get("submitted_by")
-        if owner != sub:
-            return jsonify({"success": False, "error": "Forbidden"}), 403
+        if not shared_view and owner != sub:
+            return None, (jsonify({"success": False, "error": "Forbidden"}), 403)
         ev = next((e for e in _STORE["evaluations"] if e["submission_id"] == submission_id), None)
         raw_det = (ev or {}).get("evaluation_details") or "{}"
 
@@ -853,12 +893,43 @@ def submission_examples(submission_id: int):
     except Exception:
         det = {}
 
-    all_items: List[Dict[str, Any]] = det.get("item_results") or (det.get("detailed_scores") or {}).get("item_results") or []
-    if filter_by == "correct":
-        all_items = [it for it in all_items if it.get("correct") is True]
-    elif filter_by == "wrong":
-        all_items = [it for it in all_items if it.get("correct") is False]
+    items: List[Dict[str, Any]] = det.get("item_results") or (det.get("detailed_scores") or {}).get("item_results") or []
+    return items, None
 
+
+def _filter_examples(items: List[Dict[str, Any]], filter_by: str) -> List[Dict[str, Any]]:
+    if filter_by == "correct":
+        return [it for it in items if it.get("correct") is True]
+    if filter_by == "wrong":
+        return [it for it in items if it.get("correct") is False]
+    return items
+
+
+@bp.get("/public/submissions/<int:submission_id>/examples")
+def submission_examples(submission_id: int):
+    """Per-example prediction results for a submission.
+
+    Query params:
+      filter  = all | correct | wrong   (default: all)
+      offset  = int (default 0)
+      limit   = int 1–500 (default 100)
+      share   = share token minted via POST /public/submissions/<id>/share
+                (grants read-only access without owner auth)
+    """
+    filter_by = request.args.get("filter", "all").lower()
+    if filter_by not in ("all", "correct", "wrong"):
+        return jsonify({"success": False, "error": "filter must be all, correct, or wrong"}), 400
+    try:
+        offset = max(0, int(request.args.get("offset", 0)))
+        limit = min(500, max(1, int(request.args.get("limit", 100))))
+    except (ValueError, TypeError):
+        return jsonify({"success": False, "error": "offset and limit must be integers"}), 400
+
+    items, err = _load_submission_examples(request, submission_id)
+    if err:
+        return err
+
+    all_items = _filter_examples(items, filter_by)
     total = len(all_items)
     page = all_items[offset: offset + limit]
     return jsonify({
@@ -869,6 +940,116 @@ def submission_examples(submission_id: int):
         "offset": offset,
         "limit": limit,
         "examples": page,
+    })
+
+
+@bp.get("/public/submissions/<int:submission_id>/examples/export")
+def submission_examples_export(submission_id: int):
+    """Download per-example results as CSV (owner auth or share token).
+
+    Query params:
+      filter = all | correct | wrong   (default: all)
+      share  = share token (optional alternative to owner auth)
+    """
+    filter_by = request.args.get("filter", "all").lower()
+    if filter_by not in ("all", "correct", "wrong"):
+        return jsonify({"success": False, "error": "filter must be all, correct, or wrong"}), 400
+
+    items, err = _load_submission_examples(request, submission_id)
+    if err:
+        return err
+
+    def cell(value: Any) -> str:
+        if value is None:
+            return ""
+        if isinstance(value, (list, dict)):
+            return json.dumps(value, ensure_ascii=False)
+        return str(value)
+
+    out = StringIO()
+    writer = csv.writer(out)
+    writer.writerow(["id", "ground_truth", "prediction", "correct"])
+    for it in _filter_examples(items, filter_by):
+        correct = it.get("correct")
+        writer.writerow([
+            cell(it.get("id")),
+            cell(it.get("ground_truth")),
+            cell(it.get("prediction")),
+            "" if correct is None else str(bool(correct)).lower(),
+        ])
+
+    filename = f"submission-{submission_id}-examples-{filter_by}.csv"
+    return Response(
+        out.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@bp.post("/public/submissions/<int:submission_id>/share")
+def create_submission_share_link(submission_id: int):
+    """Mint a read-only share token for a submission's examples (owner only).
+
+    Optional JSON body: {"expires_in_days": 1–90} (default 30).
+    The token is stateless (HS256, LEADERBOARD_JWT_SECRET) and carries no ``sub``
+    claim, so it cannot be replayed as a login bearer token.
+    """
+    sub, err = _require_submission_owner(request, submission_id)
+    if err:
+        return err
+
+    conn, cursor = get_db_connection()
+    if conn and cursor:
+        try:
+            try:
+                cursor.execute(
+                    "SELECT ms.submitter_id, ms.submitted_by FROM model_submissions ms WHERE ms.id = %s",
+                    (submission_id,),
+                )
+            except Exception:
+                cursor.execute(
+                    "SELECT ms.submitted_by FROM model_submissions ms WHERE ms.id = %s",
+                    (submission_id,),
+                )
+            r = cursor.fetchone()
+        finally:
+            try:
+                cursor.close()
+                conn.close()
+            except Exception:
+                pass
+        if not r:
+            return jsonify({"success": False, "error": "Not found"}), 404
+        owner = r.get("submitter_id") or r.get("submitted_by") or ""
+    else:
+        sub_row = next((s for s in _STORE["submissions"] if s["id"] == submission_id), None)
+        if not sub_row:
+            return jsonify({"success": False, "error": "Not found"}), 404
+        owner = sub_row.get("submitter_id") or sub_row.get("submitted_by")
+    if owner != sub:
+        return jsonify({"success": False, "error": "Forbidden"}), 403
+
+    body = request.get_json(silent=True) or {}
+    try:
+        days = int(body.get("expires_in_days", _SHARE_DEFAULT_DAYS))
+    except (ValueError, TypeError):
+        return jsonify({"success": False, "error": "expires_in_days must be an integer"}), 400
+    days = min(_SHARE_MAX_DAYS, max(1, days))
+
+    token = _mint_share_token(submission_id, days)
+    if not token:
+        return jsonify({
+            "success": False,
+            "error": "Share links require LEADERBOARD_JWT_SECRET to be configured",
+        }), 503
+
+    expires_at = datetime.now(timezone.utc) + timedelta(days=days)
+    return jsonify({
+        "success": True,
+        "submission_id": submission_id,
+        "share_token": token,
+        "expires_in_days": days,
+        "expires_at": expires_at.isoformat(),
     })
 
 

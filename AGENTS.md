@@ -177,6 +177,9 @@ GET  /public/my_submissions
 GET  /public/submission_quota
 GET  /public/submissions/<id>
 DELETE /public/submissions/<id>
+GET  /public/submissions/<id>/examples
+GET  /public/submissions/<id>/examples/export
+POST /public/submissions/<id>/share
 POST /public/import_hf_dataset
 POST /public/run_hf_model
 GET  /public/benchmark_csvs
