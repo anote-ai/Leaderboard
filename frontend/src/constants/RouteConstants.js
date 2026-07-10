@@ -12,6 +12,7 @@ export const csvBenchmarksPath = "/benchmarks";
 export const addDatasetPath = "/datasets/new";
 export const createLeaderboardPath = "/create-leaderboard";
 export const compareModelsPath = "/compare";
+export const headToHeadPath = "/head-to-head";
 export const modelCardPath = "/model/:name";
 export const submissionExamplesPath = "/submissions/:id/examples";
 export const faqPath = "/faq";

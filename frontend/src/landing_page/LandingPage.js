@@ -34,11 +34,13 @@ import {
   createLeaderboardPath,
   faqPath,
   compareModelsPath,
+  headToHeadPath,
   modelCardPath,
   submissionExamplesPath,
 } from "../constants/RouteConstants";
 import MySubmissions from "./landing_page_components/MySubmissions";
 import ModelComparison from "./landing_page_components/ModelComparison";
+import HeadToHead from "./landing_page_components/HeadToHead";
 import ModelCard from "./landing_page_components/ModelCard";
 import SubmissionExamples from "./landing_page_components/SubmissionExamples";
 import HeaderBar from "./landing_page_components/HeaderBar";
@@ -142,6 +144,7 @@ function LandingPage() {
           ,
           <Route path="/dataset/:name" element={<DatasetDetails />} />,
           <Route path={compareModelsPath} element={<ModelComparison />} />,
+          <Route path={headToHeadPath} element={<HeadToHead />} />,
           <Route path={modelCardPath} element={<ModelCard />} />,
           <Route
             path={submissionExamplesPath}

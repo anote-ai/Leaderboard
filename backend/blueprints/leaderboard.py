@@ -930,6 +930,209 @@ def compare_models():
     return jsonify({'success': True, 'models': model_names_req, 'comparisons': comparisons})
 
 
+def _extract_item_results(det: Any) -> list[dict[str, Any]]:
+    """Pull the per-example item_results list out of an evaluation_details blob.
+
+    Handles both the DB (JSON string) and in-memory (dict) shapes, and both
+    the top-level and nested-under-detailed_scores placements.
+    """
+    if isinstance(det, str):
+        try:
+            det = json.loads(det)
+        except Exception:
+            return []
+    if not isinstance(det, dict):
+        return []
+    items = det.get("item_results")
+    if not items:
+        inner = det.get("detailed_scores")
+        if isinstance(inner, dict):
+            items = inner.get("item_results")
+    return items if isinstance(items, list) else []
+
+
+_H2H_CATEGORIES = ("both_correct", "both_wrong", "a_only", "b_only", "unscored")
+
+
+def _categorize_pair(correct_a: Any, correct_b: Any) -> str:
+    """Bucket an aligned example by which of the two models got it right."""
+    if correct_a is None or correct_b is None:
+        return "unscored"
+    if correct_a and correct_b:
+        return "both_correct"
+    if not correct_a and not correct_b:
+        return "both_wrong"
+    return "a_only" if correct_a else "b_only"
+
+
+@bp.get('/public/head_to_head')
+def head_to_head():
+    """Per-example head-to-head disagreement view for two models on one dataset.
+
+    Query params:
+      models  — comma-separated pair of model names (exactly 2 required)
+      dataset — benchmark dataset name (required)
+      filter  — all | disagreement | a_only | b_only | both_correct | both_wrong | unscored
+      offset  — int (default 0)
+      limit   — int 1–500 (default 100)
+
+    Aligns the two models' best public submissions on the dataset by example id
+    and reports, for every shared example, whether each model was correct and
+    what each predicted — so users can see exactly where the models diverge.
+    """
+    raw = request.args.get('models', '')
+    pair = [m.strip() for m in raw.split(',') if m.strip()]
+    # De-dupe while preserving order so ?models=A,A is rejected cleanly.
+    seen: dict = {}
+    for m in pair:
+        seen.setdefault(m, None)
+    pair = list(seen.keys())
+    if len(pair) != 2:
+        return jsonify({"success": False, "error": "Provide exactly 2 distinct model names via ?models=A,B"}), 400
+
+    dataset_name = (request.args.get('dataset') or '').strip()
+    if not dataset_name:
+        return jsonify({"success": False, "error": "Provide a dataset name via ?dataset="}), 400
+
+    filter_by = (request.args.get('filter') or 'all').lower()
+    valid_filters = ('all', 'disagreement') + _H2H_CATEGORIES
+    if filter_by not in valid_filters:
+        return jsonify({"success": False, "error": f"filter must be one of: {', '.join(valid_filters)}"}), 400
+    try:
+        offset = max(0, int(request.args.get('offset', 0)))
+        limit = min(500, max(1, int(request.args.get('limit', 100))))
+    except (ValueError, TypeError):
+        return jsonify({"success": False, "error": "offset and limit must be integers"}), 400
+
+    model_a, model_b = pair[0], pair[1]
+
+    # best[model] = {"score": float, "items": [...]}; meta captured once.
+    best: dict = {}
+    meta: dict = {"task_type": None, "evaluation_metric": None}
+
+    conn, cursor = get_db_connection()
+    if conn and cursor:
+        try:
+            cursor.execute(
+                "SELECT ms.model_name, er.score, er.evaluation_details, "
+                "bd.task_type, bd.evaluation_metric "
+                "FROM model_submissions ms "
+                "JOIN benchmark_datasets bd ON ms.benchmark_dataset_id = bd.id "
+                "JOIN evaluation_results er ON er.model_submission_id = ms.id "
+                "WHERE ms.model_name IN (%s, %s) "
+                "  AND bd.name = %s "
+                "  AND bd.active = TRUE "
+                "  AND (ms.is_public IS NULL OR ms.is_public = 1) "
+                "ORDER BY er.score DESC",
+                (model_a, model_b, dataset_name),
+            )
+            rows = cursor.fetchall()
+        except Exception as e:
+            logger.exception("head_to_head_db_error", extra={"error": str(e)})
+            rows = []
+        finally:
+            try:
+                cursor.close()
+                conn.close()
+            except Exception:
+                pass
+        for row in rows:
+            mn = row['model_name']
+            score = float(row['score'])
+            if mn in best and score <= best[mn]['score']:
+                continue
+            items = _extract_item_results(row.get('evaluation_details'))
+            if not items:
+                continue
+            best[mn] = {"score": score, "items": items}
+            if meta["task_type"] is None:
+                meta["task_type"] = row.get('task_type')
+                meta["evaluation_metric"] = row.get('evaluation_metric')
+    else:
+        # In-memory fallback.
+        for sub in _STORE.get('submissions', []):
+            mn = sub.get('model_name', '')
+            if mn not in (model_a, model_b):
+                continue
+            if sub.get('benchmark_dataset_name') != dataset_name:
+                continue
+            if sub.get('is_public') is False:
+                continue
+            ev = next((e for e in _STORE.get('evaluations', []) if e.get('submission_id') == sub.get('id')), None)
+            if not ev:
+                continue
+            score = float(ev.get('score', 0))
+            if mn in best and score <= best[mn]['score']:
+                continue
+            items = _extract_item_results(ev.get('evaluation_details'))
+            if not items:
+                continue
+            best[mn] = {"score": score, "items": items}
+
+    for mn in (model_a, model_b):
+        if mn not in best:
+            return jsonify({
+                "success": False,
+                "error": f"No public submission with per-example results found for '{mn}' on '{dataset_name}'",
+            }), 404
+
+    items_a = {it.get('id'): it for it in best[model_a]['items'] if it.get('id') is not None}
+    items_b = {it.get('id'): it for it in best[model_b]['items'] if it.get('id') is not None}
+    shared_ids = [i for i in items_a if i in items_b]
+    # Sort ids numerically when possible for stable, human-friendly ordering.
+    try:
+        shared_ids.sort(key=lambda x: (0, int(x)) if str(x).lstrip('-').isdigit() else (1, str(x)))
+    except Exception:
+        shared_ids.sort(key=lambda x: str(x))
+
+    summary = {k: 0 for k in _H2H_CATEGORIES}
+    aligned: list = []
+    for gid in shared_ids:
+        ia, ib = items_a[gid], items_b[gid]
+        category = _categorize_pair(ia.get('correct'), ib.get('correct'))
+        summary[category] += 1
+        aligned.append({
+            "id": gid,
+            "ground_truth": ia.get('ground_truth'),
+            "prediction_a": ia.get('prediction'),
+            "prediction_b": ib.get('prediction'),
+            "correct_a": ia.get('correct'),
+            "correct_b": ib.get('correct'),
+            "category": category,
+        })
+
+    scored = summary["both_correct"] + summary["both_wrong"] + summary["a_only"] + summary["b_only"]
+    summary["total_aligned"] = len(aligned)
+    summary["a_missing"] = len(items_a) - len(shared_ids)
+    summary["b_missing"] = len(items_b) - len(shared_ids)
+    summary["agreement_rate"] = round((summary["both_correct"] + summary["both_wrong"]) / scored, 6) if scored else None
+
+    if filter_by == 'disagreement':
+        filtered = [it for it in aligned if it['category'] in ('a_only', 'b_only')]
+    elif filter_by in _H2H_CATEGORIES:
+        filtered = [it for it in aligned if it['category'] == filter_by]
+    else:
+        filtered = aligned
+
+    total = len(filtered)
+    page = filtered[offset: offset + limit]
+
+    return jsonify({
+        "success": True,
+        "dataset_name": dataset_name,
+        "task_type": meta["task_type"],
+        "evaluation_metric": meta["evaluation_metric"],
+        "models": {"a": model_a, "b": model_b},
+        "scores": {"a": best[model_a]['score'], "b": best[model_b]['score']},
+        "summary": summary,
+        "filter": filter_by,
+        "offset": offset,
+        "limit": limit,
+        "total": total,
+        "items": page,
+    })
+
+
 @bp.get('/public/export/leaderboard')
 @rate_limit("EXPORT_RATE_LIMIT", "10/minute")
 def export_leaderboard():
