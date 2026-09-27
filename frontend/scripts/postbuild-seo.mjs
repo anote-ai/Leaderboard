@@ -141,8 +141,10 @@ function datasetBody(dataset) {
       research.repo_url && `<li><a href="${esc(research.repo_url)}" rel="noopener">GitHub repository</a></li>`,
       research.hf_url && `<li><a href="${esc(research.hf_url)}" rel="noopener">Hugging Face dataset</a></li>`,
       research.blog_url && `<li><a href="${esc(research.blog_url)}" rel="noopener">Blog post</a></li>`,
+      ...(research.extra_links || []).map((l) => `<li><a href="${esc(l.url)}" rel="noopener">${esc(l.label)}</a></li>`),
     ].filter(Boolean);
-    if (links.length) parts.push(`<h2>Research</h2><ul>${links.join("")}</ul>`);
+    if (links.length) parts.push(`<h2>Research</h2>${research.paper_title ? `<p>${esc(research.paper_title)}</p>` : ""}<ul>${links.join("")}</ul>`);
+    if (research.notes) parts.push(`<p>${esc(research.notes)}</p>`);
     if (research.bibtex) parts.push(`<h2>Cite this benchmark</h2><pre>${esc(research.bibtex)}</pre>`);
   }
   parts.push("<h2>More benchmark leaderboards</h2>", datasetLinks(dataset.name));

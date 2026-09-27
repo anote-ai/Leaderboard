@@ -6,6 +6,46 @@ from shared import *
 bp = Blueprint("submissions", __name__)
 app = bp
 
+# Task types that are listed on the leaderboard (with reported results) but have no
+# automated scorer yet. See docs/research-benchmarks.md for the planned evaluators.
+UNSCORED_TASK_TYPES = {"tool_calling"}
+
+
+def _dataset_task_type(dataset_name: str) -> Optional[str]:
+    conn, cursor = get_db_connection()
+    if conn and cursor:
+        try:
+            cursor.execute("SELECT task_type FROM benchmark_datasets WHERE name = %s", (dataset_name,))
+            row = cursor.fetchone()
+            if row:
+                return row.get("task_type")
+        except Exception:
+            pass
+        finally:
+            try:
+                cursor.close()
+                conn.close()
+            except Exception:
+                pass
+    stored = next((d for d in _STORE["datasets"] if d.get("name") == dataset_name), None)
+    return (stored or {}).get("task_type")
+
+
+def _unscored_task_response(dataset_name: str):
+    """400 response when the dataset's task type cannot be scored automatically yet, else None."""
+    task_type = str(_dataset_task_type(dataset_name) or "").lower()
+    if task_type not in UNSCORED_TASK_TYPES:
+        return None
+    return jsonify({
+        "success": False,
+        "error": (
+            f"Automated scoring for task type {task_type!r} is not available yet. "
+            "This leaderboard shows results reported in the benchmark's paper; "
+            "see docs/research-benchmarks.md."
+        ),
+    }), 400
+
+
 @bp.post('/public/submit_model')
 @rate_limit("SUBMIT_MODEL_RATE_LIMIT", "10/minute")
 @require_api_key
@@ -38,6 +78,9 @@ def submit_model():
             "error": "Missing required fields: benchmarkDatasetName, modelName, modelResults (list)",
         }), 400
 
+    unscored = _unscored_task_response(benchmark_dataset_name)
+    if unscored is not None:
+        return unscored
     submitter_id = resolve_submitter_id(request, data)
     quota_submitter_id = submitter_id or submitted_by or "anonymous"
     quota_ok, submissions_remaining, quota_resets_at = _consume_submission_quota(quota_submitter_id)
@@ -1406,6 +1449,9 @@ def run_llm_submission():
         return jsonify({"success": False, "error": str(e)}), 400
     is_public = 0 if str(data.get("is_public", True)).lower() in ("false", "0", "no", "private") else 1
     submitter_id = resolve_submitter_id(request, data)
+    unscored = _unscored_task_response(benchmark_name)
+    if unscored is not None:
+        return unscored
 
     # Load dataset
     dataset = None

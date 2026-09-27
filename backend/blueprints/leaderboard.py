@@ -1373,13 +1373,14 @@ def add_model():
             ds_meta = next((d for d in _STORE["datasets"] if d.get("name") == dataset_name), None)
             metric = (ds_meta or {}).get("evaluation_metric") or target_dataset.get("evaluation_metric") or data.get("metric") or "accuracy"
             submission_id = len(_STORE["submissions"]) + 1
+            citation = data.get("source") if isinstance(data.get("source"), str) else None
             _STORE["submissions"].append({
                 "id": submission_id,
                 "benchmark_dataset_name": dataset_name,
                 "model_name": model,
                 "submitted_by": data.get("submitted_by", "seed_real_benchmarks@anote.ai"),
                 "submitter_id": data.get("submitter_id", "seed-real-benchmarks"),
-                "metadata": {"source": "api/leaderboard/add_model", "rank": data.get("rank"), "updated": data.get("updated")},
+                "metadata": {"source": "api/leaderboard/add_model", "rank": data.get("rank"), "updated": data.get("updated"), "citation": citation},
                 "results": [],
                 "created": utc_now(),
             })
@@ -1389,7 +1390,7 @@ def add_model():
                 "metric": metric,
                 "evaluation_details": {
                     "metric": metric,
-                    "metadata": {"rank": data.get("rank"), "updated": data.get("updated"), "ci": data.get("ci")},
+                    "metadata": {"rank": data.get("rank"), "updated": data.get("updated"), "ci": data.get("ci"), "citation": citation},
                     "detailed_scores": data.get("detailed_scores") if isinstance(data.get("detailed_scores"), dict) else {metric: data["score"]},
                 },
                 "created": utc_now(),
@@ -1403,7 +1404,7 @@ def add_model():
                         return jsonify({"status": "error", "message": "Dataset not found."}), 404
                     eval_details = {
                         "metric": metric,
-                        "metadata": {"rank": data.get("rank"), "updated": data.get("updated"), "ci": data.get("ci")},
+                        "metadata": {"rank": data.get("rank"), "updated": data.get("updated"), "ci": data.get("ci"), "citation": citation},
                         "detailed_scores": data.get("detailed_scores") if isinstance(data.get("detailed_scores"), dict) else {metric: data["score"]},
                     }
                     cursor.execute(
@@ -1439,46 +1440,38 @@ def _unwrapped_route(fn):
     return fn
 
 
-def _seed_builtin_leaderboard_data() -> dict[str, int]:
+def _seed_models() -> Any:
     try:
-        from scripts.seed_real_benchmarks import DATASETS, detailed_scores  # type: ignore
+        from scripts import seed_real_benchmarks as seed  # type: ignore
     except ImportError:
-        from backend.scripts.seed_real_benchmarks import DATASETS, detailed_scores  # type: ignore
+        from backend.scripts import seed_real_benchmarks as seed  # type: ignore
+    return seed
 
-    dataset_fn = _unwrapped_route(add_dataset)
-    model_fn = _unwrapped_route(add_model)
+
+def _seed_one_dataset(dataset: dict[str, Any], with_models: bool = True) -> int:
+    """Add one seed dataset (and its reported models) through the regular endpoints."""
+    seed = _seed_models()
+    with current_app.test_request_context(
+        "/api/leaderboard/add_dataset", method="POST", json=seed.dataset_payload(dataset)
+    ):
+        _unwrapped_route(add_dataset)()
     models_added = 0
-    for dataset in DATASETS:
-        with current_app.test_request_context(
-            "/api/leaderboard/add_dataset",
-            method="POST",
-            json={
-                "name": dataset["name"],
-                "task_type": dataset["task_type"],
-                "evaluation_metric": dataset["evaluation_metric"],
-                "url": dataset["url"],
-                "description": dataset.get("description", f"Seeded benchmark card for {dataset['name']}."),
-                "source_texts": (dataset.get("reference_data") or {}).get("source_texts", []),
-                "ground_truth": (dataset.get("reference_data") or {}).get("ground_truth", []),
-            },
-        ):
-            dataset_fn()
-        for model in dataset.get("models", []):
-            payload = {
-                **model,
-                "dataset_name": dataset["name"],
-                "detailed_scores": detailed_scores(
-                    dataset["task_type"],
-                    dataset["evaluation_metric"],
-                    float(model["score"]),
-                ),
-            }
-            with current_app.test_request_context("/api/leaderboard/add_model", method="POST", json=payload):
-                resp = model_fn()
-            status_code = getattr(resp, "status_code", 200)
-            if status_code < 400:
-                models_added += 1
-    return {"seeded": len(DATASETS), "models_added": models_added}
+    if not with_models:
+        return models_added
+    model_fn = _unwrapped_route(add_model)
+    for model in dataset.get("models", []):
+        payload = seed.model_payload(dataset, model)
+        with current_app.test_request_context("/api/leaderboard/add_model", method="POST", json=payload):
+            resp = model_fn()
+        if getattr(resp, "status_code", 200) < 400:
+            models_added += 1
+    return models_added
+
+
+def _seed_builtin_leaderboard_data() -> dict[str, int]:
+    datasets = _seed_models().DATASETS
+    models_added = sum(_seed_one_dataset(dataset) for dataset in datasets)
+    return {"seeded": len(datasets), "models_added": models_added}
 
 
 @bp.post('/api/leaderboard/seed')
@@ -1680,15 +1673,15 @@ def _leaderboard_has_any_rows() -> bool:
 
 
 def _ensure_required_datasets() -> dict[str, int]:
-    """Add required runnable seed datasets that may be missing from an older DB."""
-    try:
-        from scripts.seed_real_benchmarks import DATASETS  # type: ignore
-    except ImportError:
-        from backend.scripts.seed_real_benchmarks import DATASETS  # type: ignore
+    """Add required seed datasets that may be missing from an older DB.
 
-    required = [d for d in DATASETS if d.get("name") in _REQUIRED_SEED_DATASETS]
+    Research benchmarks are always required so they reach existing deployments; their
+    reported results are added together with the dataset, only when the dataset is new.
+    """
+    datasets = _seed_models().DATASETS
+    required = [d for d in datasets if d.get("name") in _REQUIRED_SEED_DATASETS or d.get("research")]
     added = 0
-    dataset_fn = _unwrapped_route(add_dataset)
+    models_added = 0
 
     for dataset in required:
         name = dataset["name"]
@@ -1711,23 +1704,10 @@ def _ensure_required_datasets() -> dict[str, int]:
         if exists:
             continue
 
-        with current_app.test_request_context(
-            "/api/leaderboard/add_dataset",
-            method="POST",
-            json={
-                "name": name,
-                "task_type": dataset["task_type"],
-                "evaluation_metric": dataset["evaluation_metric"],
-                "url": dataset["url"],
-                "description": dataset.get("description", f"Seeded benchmark card for {name}."),
-                "source_texts": (dataset.get("reference_data") or {}).get("source_texts", []),
-                "ground_truth": (dataset.get("reference_data") or {}).get("ground_truth", []),
-            },
-        ):
-            dataset_fn()
+        models_added += _seed_one_dataset(dataset, with_models=bool(dataset.get("research")))
         added += 1
 
-    return {"required_datasets_added": added}
+    return {"required_datasets_added": added, "required_models_added": models_added}
 
 
 @bp.before_request

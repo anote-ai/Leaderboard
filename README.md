@@ -92,6 +92,7 @@ Notes
 - `POST /public/import_hf_dataset`: import a bounded Hugging Face split.
 - `POST /api/datasets/ingest`: ingestion-compatible alias for Hugging Face imports.
 - `GET /public/export/leaderboard?format=csv|json`: export leaderboard rows.
+- Anote research benchmarks (EnterpriseBench, RetrievalBench, OrchestraBench and others) and how they map to task types: [`docs/research-benchmarks.md`](docs/research-benchmarks.md).
 - `GET /public/sitemap.xml`: sitemap of every public dataset page (including datasets added after the frontend build). See [`docs/seo.md`](docs/seo.md).
 
 Pagination (leaderboard and my submissions):

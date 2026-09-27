@@ -13,6 +13,14 @@ from typing import Any, Dict, List
 
 import requests
 
+try:
+    from scripts.research_benchmarks import RESEARCH_DATASETS
+except ImportError:  # pragma: no cover - import style depends on how the script is run
+    try:
+        from backend.scripts.research_benchmarks import RESEARCH_DATASETS  # type: ignore
+    except ImportError:
+        from research_benchmarks import RESEARCH_DATASETS  # type: ignore
+
 BASE = os.environ.get("LEADERBOARD_API_BASE", "http://127.0.0.1:5001").rstrip("/")
 API_KEY = os.environ.get("LEADERBOARD_API_KEY", "")
 
@@ -206,9 +214,43 @@ DATASETS: List[Dict[str, Any]] = [
     },
 ]
 
+# Anote research benchmarks: reported results with per-row sources (see research_benchmarks.py).
+DATASETS.extend(RESEARCH_DATASETS)
+
 
 def clamp(value: float) -> float:
     return round(max(0.0, min(1.0, value)), 4)
+
+
+def model_payload(dataset: Dict[str, Any], model: Dict[str, Any]) -> Dict[str, Any]:
+    """Payload for /api/leaderboard/add_model.
+
+    Research rows carry the metrics their source reports; only legacy rows without
+    ``detailed_scores`` fall back to the illustrative ``detailed_scores()`` spread.
+    """
+    reported = model.get("detailed_scores")
+    return {
+        **model,
+        "dataset_name": dataset["name"],
+        "detailed_scores": reported if isinstance(reported, dict) else detailed_scores(
+            dataset["task_type"],
+            dataset["evaluation_metric"],
+            float(model["score"]),
+        ),
+    }
+
+
+def dataset_payload(dataset: Dict[str, Any]) -> Dict[str, Any]:
+    """Payload for /api/leaderboard/add_dataset."""
+    return {
+        "name": dataset["name"],
+        "task_type": dataset["task_type"],
+        "evaluation_metric": dataset["evaluation_metric"],
+        "url": dataset["url"],
+        "description": dataset.get("description", f"Seeded benchmark card for {dataset['name']}."),
+        "source_texts": (dataset.get("reference_data") or {}).get("source_texts", []),
+        "ground_truth": (dataset.get("reference_data") or {}).get("ground_truth", []),
+    }
 
 
 def detailed_scores(task_type: str, metric: str, score: float) -> Dict[str, float]:
@@ -274,29 +316,9 @@ def post(path: str, payload: Dict[str, Any]) -> Dict[str, Any]:
 
 def main() -> None:
     for dataset in DATASETS:
-        post(
-            "/api/leaderboard/add_dataset",
-            {
-                "name": dataset["name"],
-                "task_type": dataset["task_type"],
-                "evaluation_metric": dataset["evaluation_metric"],
-                "url": dataset["url"],
-                "description": dataset.get("description", f"Seeded benchmark card for {dataset['name']}."),
-                "source_texts": (dataset.get("reference_data") or {}).get("source_texts", []),
-                "ground_truth": (dataset.get("reference_data") or {}).get("ground_truth", []),
-            },
-        )
+        post("/api/leaderboard/add_dataset", dataset_payload(dataset))
         for model in dataset.get("models", []):
-            payload = {
-                **model,
-                "dataset_name": dataset["name"],
-                "detailed_scores": detailed_scores(
-                    dataset["task_type"],
-                    dataset["evaluation_metric"],
-                    float(model["score"]),
-                ),
-            }
-            post("/api/leaderboard/add_model", payload)
+            post("/api/leaderboard/add_model", model_payload(dataset, model))
         print(f"Seeded {dataset['name']} ({len(dataset['models'])} models)")
 
 

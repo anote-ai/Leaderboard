@@ -293,12 +293,129 @@ def build_conll2003_import_payload(
     }
 
 
+# ---------------------------------------------------------------------------
+# EnterpriseBench (anote-ai/research-enterpriseBench): tool-calling agent tasks
+# ---------------------------------------------------------------------------
+ENTERPRISEBENCH_HF_ID = "anote-ai/research-enterpriseBench"
+# Must match scripts/research_benchmarks.py so an import fills the seeded leaderboard card.
+ENTERPRISEBENCH_DISPLAY_NAME = "EnterpriseBench"
+
+# Column names from the task schema in the EnterpriseBench README (task_id, vertical,
+# instruction, tool_schema, expected_call, expected_output, difficulty) plus common variants.
+_EB_INSTRUCTION_KEYS = ("instruction", "prompt", "input", "question", "task", "user_request")
+_EB_CALL_KEYS = ("expected_call", "expected_tool_call", "gold_call", "tool_call", "reference_call")
+_EB_TOOL_NAME_KEYS = ("expected_tool", "tool_name", "tool", "function_name")
+_EB_ARGUMENT_KEYS = ("expected_arguments", "arguments", "args", "parameters")
+_EB_METADATA_KEYS = (
+    "vertical", "category", "workflow_category", "difficulty", "tool_schema", "expected_output",
+    "policy_ids", "policies", "policy_rules", "pre_state", "post_state", "turns", "decisions",
+)
+
+
+def _json_value(value: Any) -> Any:
+    """Decode JSON-encoded string cells (HF exports often store nested objects as strings)."""
+    if isinstance(value, str):
+        text = value.strip()
+        if text[:1] in ("{", "["):
+            try:
+                import json
+
+                return json.loads(text)
+            except ValueError:
+                return value
+    return value
+
+
+def _first(row: Dict[str, Any], keys: Tuple[str, ...]) -> Any:
+    for key in keys:
+        if row.get(key) not in (None, ""):
+            return row[key]
+    return None
+
+
+def enterprisebench_row_to_ground_truth(idx: int, split: str, row: Dict[str, Any]) -> Dict[str, Any]:
+    """One leaderboard ground-truth item: instruction -> expected tool call ({name, arguments})."""
+    instruction = _first(row, _EB_INSTRUCTION_KEYS)
+    call = _json_value(_first(row, _EB_CALL_KEYS))
+    if not isinstance(call, dict):
+        name = _first(row, _EB_TOOL_NAME_KEYS)
+        call = {"name": name, "arguments": _json_value(_first(row, _EB_ARGUMENT_KEYS)) or {}} if name else {}
+    name = call.get("name") or call.get("tool") or call.get("function")
+    arguments = _json_value(call.get("arguments", call.get("args", {})))
+    if not instruction or not name:
+        raise ValueError(
+            f"EnterpriseBench row {idx} has no instruction or expected tool call; "
+            f"columns present: {sorted(row.keys())}"
+        )
+    metadata: Dict[str, Any] = {
+        "source": "huggingface",
+        "dataset_name": ENTERPRISEBENCH_HF_ID,
+        "split": split,
+        "hf_idx": idx,
+    }
+    for key in _EB_METADATA_KEYS:
+        if row.get(key) is not None:
+            metadata[key] = _json_value(row[key])
+    return {
+        "id": str(row.get("task_id") or row.get("id") or f"enterprisebench_{split}_{idx}"),
+        "question": str(instruction),
+        "answer": {"name": str(name), "arguments": arguments if isinstance(arguments, dict) else {}},
+        "metadata": metadata,
+    }
+
+
+def hf_rows_to_enterprisebench_ground_truth(rows: List[Dict[str, Any]], split: str) -> List[Dict[str, Any]]:
+    """Convert HF-style row dicts (for unit tests without load_dataset)."""
+    return [enterprisebench_row_to_ground_truth(idx, split, dict(row)) for idx, row in enumerate(rows)]
+
+
+def load_enterprisebench_ground_truth(split: str, limit: Optional[int] = None) -> Tuple[List[Dict[str, Any]], str]:
+    """Load EnterpriseBench rows; falls back to the ``train`` split when ``test`` does not exist."""
+    try:
+        ds = _load_dataset(ENTERPRISEBENCH_HF_ID, split=split)
+    except Exception:
+        if split != "test":
+            raise
+        split = "train"
+        ds = _load_dataset(ENTERPRISEBENCH_HF_ID, split=split)
+    n = len(ds) if limit is None else min(len(ds), limit)
+    return [enterprisebench_row_to_ground_truth(idx, split, dict(ds[idx])) for idx in range(n)], split
+
+
+def build_enterprisebench_import_payload(
+    split: str = "test",
+    limit: Optional[int] = None,
+    leaderboard_dataset_id: Optional[str] = None,
+    display_name: Optional[str] = None,
+) -> Dict[str, Any]:
+    ground_truth, used_split = load_enterprisebench_ground_truth(split=split, limit=limit)
+    return {
+        "id": leaderboard_dataset_id or f"hf_enterprisebench_{used_split}",
+        "name": display_name or ENTERPRISEBENCH_DISPLAY_NAME,
+        "description": (
+            f"EnterpriseBench tool-calling tasks from {ENTERPRISEBENCH_HF_ID}, split={used_split!r}, "
+            f"{len(ground_truth)} tasks. Each item pairs an enterprise instruction with the expected tool call."
+        ),
+        "url": f"https://huggingface.co/datasets/{ENTERPRISEBENCH_HF_ID}",
+        "task_type": "tool_calling",
+        "test_set_public": True,
+        "labels_public": False,
+        "primary_metric": "policy_compliance_rate",
+        "additional_metrics": ["policy_violation_rate", "syntactic_accuracy", "multi_turn_consistency"],
+        "ground_truth": ground_truth,
+    }
+
+
 # Recipe key: (hf_dataset_id lowercased, config lowercased)
 RECIPE_IMPORTERS = {
     (GLUE_HF_ID.lower(), GLUE_SST2_CONFIG.lower()): build_glue_sst2_import_payload,
     (SQUAD_HF_ID.lower(), "default"): build_squad_import_payload,
     (CONLL_HF_ID.lower(), "default"): build_conll2003_import_payload,
+    (ENTERPRISEBENCH_HF_ID.lower(), "default"): build_enterprisebench_import_payload,
 }
+
+# Recipes whose failures must surface: the generic row importer cannot represent these datasets.
+STRICT_RECIPE_DATASETS = {ENTERPRISEBENCH_HF_ID.lower()}
 
 
 def try_recipe_import(

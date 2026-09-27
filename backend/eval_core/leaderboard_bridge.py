@@ -359,6 +359,11 @@ def recipe_payload_to_benchmark_import(recipe: Dict[str, Any]) -> Dict[str, Any]
             else:
                 rd["answers"].append(a)
         rd["source_texts"] = [str(x.get("question") or "") for x in gt]
+    elif task == "tool_calling":
+        # Expected calls stay structured in ground_truth; only the instructions are listed.
+        rd["source_texts"] = [str(x.get("question") or "") for x in gt]
+    if recipe.get("url", "").startswith("https://huggingface.co/datasets/"):
+        rd["hf_dataset"] = recipe["url"].split("https://huggingface.co/datasets/", 1)[1]
     name = recipe.get("name") or recipe.get("display_name") or "imported_dataset"
     return {
         "name": name,
