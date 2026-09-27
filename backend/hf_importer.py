@@ -111,10 +111,12 @@ def import_hf_dataset(
         raise HuggingFaceImportError("limit must be between 1 and 5000")
 
     # Personal SQuAD / GLUE SST-2 / CoNLL-2003 recipes (full ground_truth + metrics)
+    strict_recipe = False
     try:
-        from eval_core.hf_dataset_recipes import try_recipe_import
+        from eval_core.hf_dataset_recipes import STRICT_RECIPE_DATASETS, try_recipe_import
         from eval_core.leaderboard_bridge import recipe_payload_to_benchmark_import
 
+        strict_recipe = dataset_name.strip().lower() in STRICT_RECIPE_DATASETS
         cfg = (config or "default").strip()
         recipe = try_recipe_import(
             dataset_name.strip(),
@@ -126,8 +128,10 @@ def import_hf_dataset(
         )
         if recipe:
             return recipe_payload_to_benchmark_import(recipe)
-    except Exception:
-        pass  # fall through to generic HF row import
+    except Exception as exc:
+        if strict_recipe:
+            raise HuggingFaceImportError(f"Failed to import {dataset_name}: {exc}") from exc
+        # otherwise fall through to generic HF row import
 
     resolved_task_type = infer_task_type(dataset_name, task_type)
     metric = TASK_DEFAULTS.get(resolved_task_type, TASK_DEFAULTS["text_classification"])["primary_metric"]

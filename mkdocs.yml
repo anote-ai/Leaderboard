@@ -37,6 +37,7 @@ nav:
   - Hugging Face Imports: huggingface-imports.md
   - Operations: operations.md
   - SEO and Prerendering: seo.md
+  - Research Benchmarks: research-benchmarks.md
 markdown_extensions:
   - pymdownx.highlight:
       anchor_linenums: true

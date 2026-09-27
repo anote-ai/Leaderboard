@@ -541,5 +541,443 @@
     "url": "https://huggingface.co/datasets/nyu-mll/glue",
     "description": "Stanford Sentiment Treebank binary sentiment classification. 20-sample subset.",
     "models": []
+  },
+  {
+    "name": "EnterpriseBench",
+    "slug": "enterprisebench",
+    "path": "/dataset/enterprisebench",
+    "task_type": "tool_calling",
+    "evaluation_metric": "policy_compliance_rate",
+    "lower_is_better": false,
+    "url": "https://huggingface.co/datasets/anote-ai/research-enterpriseBench",
+    "description": "EnterpriseBench tests whether tool-calling LLM agents behave safely on enterprise workflows, not just whether they call the right function. On 16 policy-annotated tasks across eight workflow categories (email, CRM, HR, data pipelines, calendar, documents, IT support, finance), agents are ranked by policy compliance rate: the share of tasks with no policy violation (1 minus the paper's Policy Violation Rate). Automated scoring of new submissions needs a tool-calling evaluator that is not built yet; rows below are the paper's reported results.",
+    "models": [
+      {
+        "rank": 1,
+        "model": "Reference agent (always returns the ground-truth tool call)",
+        "score": 0.5,
+        "ci": "0.25 - 0.75",
+        "updated": "Jul 2026",
+        "source": "EnterpriseBench paper draft, Section 5.1 (PVR 50% [95% CI 25-75%], 8 of 16 tasks): https://github.com/anote-ai/research-enterprisebench/blob/4632f1c0d3420b8d9de64f4737081b561ce3c06c/PAPER_DRAFT.md"
+      },
+      {
+        "rank": 2,
+        "model": "GPT-4o-mini",
+        "score": 0.4375,
+        "ci": "0.19 - 0.69",
+        "updated": "Jul 2026",
+        "source": "EnterpriseBench paper draft, Section 5.2 (PVR 56% [95% CI 31-81%], 9 of 16 tasks): https://github.com/anote-ai/research-enterprisebench/blob/4632f1c0d3420b8d9de64f4737081b561ce3c06c/PAPER_DRAFT.md"
+      }
+    ],
+    "research": {
+      "benchmark": "EnterpriseBench",
+      "seo_description": "EnterpriseBench leaderboard: do tool-calling LLM agents follow enterprise policy? Policy compliance of GPT-4o-mini and a reference agent on 16 workflow tasks.",
+      "blog_url": "https://anote.ai/blog/frontier-enterprisebench",
+      "repo_url": "https://github.com/anote-ai/research-enterprisebench",
+      "hf_url": "https://huggingface.co/datasets/anote-ai/research-enterpriseBench",
+      "paper_url": "https://drive.google.com/file/d/19x90258PK1woXf8NuRo-DchR4xGYvpTg/view?usp=drive_link",
+      "paper_title": "EnterpriseBench: Do Syntactic Tool-Calling Benchmarks Predict Deployment Trustworthiness?",
+      "arxiv_id": null,
+      "extra_links": [
+        {
+          "label": "OpenReview",
+          "url": "https://openreview.net/forum?id=Je4Xot4y7E&noteId=Je4Xot4y7E"
+        }
+      ],
+      "notes": "Scores are 1 - PVR from the paper draft; the confidence interval is the paper's PVR interval mirrored. The two agents' intervals overlap, so the ranking is not statistically significant.",
+      "bibtex": "@misc{oyemami2026enterprisebench,\n  title         = {EnterpriseBench: Do Syntactic Tool-Calling Benchmarks Predict Deployment Trustworthiness?},\n  author        = {Oyemami, Aye},\n  year          = {2026},\n  eprint        = {XXXX.XXXXX},\n  archivePrefix = {arXiv},\n  howpublished  = {\\url{https://github.com/anote-ai/research-enterprisebench}},\n  note          = {Preprint; arXiv ID pending}\n}"
+    }
+  },
+  {
+    "name": "RetrievalBench (Finance, FiQA)",
+    "slug": "retrievalbench-finance-fiqa",
+    "path": "/dataset/retrievalbench-finance-fiqa",
+    "task_type": "retrieval",
+    "evaluation_metric": "ndcg@10",
+    "lower_is_better": false,
+    "url": "https://github.com/anote-ai/research-retrievalbench",
+    "description": "RetrievalBench treats document chunking and embedding-model choice as experimental variables in cross-domain retrieval. This leaderboard shows the finance domain (FiQA: 2,000 documents, 500 queries): every combination of four chunking strategies (fixed-512, sentence, recursive, semantic) and four retrievers (BM25 and three dense embedders), ranked by NDCG@10. In this domain fixed-512 chunking beats semantic chunking by 26-41% relative NDCG@10 for every dense embedder.",
+    "models": [
+      {
+        "rank": 1,
+        "model": "OpenAI text-embedding-3-small + fixed-512 chunking",
+        "score": 0.7394,
+        "ci": "0.7128 - 0.7662",
+        "updated": "Jul 2026",
+        "source": "RetrievalBench paper Table 2 (finance rows); values and CIs from https://github.com/anote-ai/research-retrievalbench/blob/1145eaf7671bb7689201124352b646f80a7278a6/results/fiqa/chunking_results.json"
+      },
+      {
+        "rank": 2,
+        "model": "OpenAI text-embedding-3-small + recursive chunking",
+        "score": 0.7256,
+        "ci": "0.6977 - 0.7547",
+        "updated": "Jul 2026",
+        "source": "RetrievalBench paper Table 2 (finance rows); values and CIs from https://github.com/anote-ai/research-retrievalbench/blob/1145eaf7671bb7689201124352b646f80a7278a6/results/fiqa/chunking_results.json"
+      },
+      {
+        "rank": 3,
+        "model": "BGE-small-en-v1.5 + fixed-512 chunking",
+        "score": 0.6771,
+        "ci": "0.6472 - 0.7092",
+        "updated": "Jul 2026",
+        "source": "RetrievalBench paper Table 2 (finance rows); values and CIs from https://github.com/anote-ai/research-retrievalbench/blob/1145eaf7671bb7689201124352b646f80a7278a6/results/fiqa/chunking_results.json"
+      },
+      {
+        "rank": 4,
+        "model": "OpenAI text-embedding-3-small + sentence chunking",
+        "score": 0.676,
+        "ci": "0.6458 - 0.7037",
+        "updated": "Jul 2026",
+        "source": "RetrievalBench paper Table 2 (finance rows); values and CIs from https://github.com/anote-ai/research-retrievalbench/blob/1145eaf7671bb7689201124352b646f80a7278a6/results/fiqa/chunking_results.json"
+      },
+      {
+        "rank": 5,
+        "model": "E5-small-v2 + fixed-512 chunking",
+        "score": 0.665,
+        "ci": "0.6327 - 0.6963",
+        "updated": "Jul 2026",
+        "source": "RetrievalBench paper Table 2 (finance rows); values and CIs from https://github.com/anote-ai/research-retrievalbench/blob/1145eaf7671bb7689201124352b646f80a7278a6/results/fiqa/chunking_results.json"
+      },
+      {
+        "rank": 6,
+        "model": "BGE-small-en-v1.5 + recursive chunking",
+        "score": 0.6626,
+        "ci": "0.6309 - 0.6927",
+        "updated": "Jul 2026",
+        "source": "RetrievalBench paper Table 2 (finance rows); values and CIs from https://github.com/anote-ai/research-retrievalbench/blob/1145eaf7671bb7689201124352b646f80a7278a6/results/fiqa/chunking_results.json"
+      },
+      {
+        "rank": 7,
+        "model": "BGE-small-en-v1.5 + sentence chunking",
+        "score": 0.6274,
+        "ci": "0.5971 - 0.6589",
+        "updated": "Jul 2026",
+        "source": "RetrievalBench paper Table 2 (finance rows); values and CIs from https://github.com/anote-ai/research-retrievalbench/blob/1145eaf7671bb7689201124352b646f80a7278a6/results/fiqa/chunking_results.json"
+      },
+      {
+        "rank": 8,
+        "model": "E5-small-v2 + recursive chunking",
+        "score": 0.6244,
+        "ci": "0.5908 - 0.6571",
+        "updated": "Jul 2026",
+        "source": "RetrievalBench paper Table 2 (finance rows); values and CIs from https://github.com/anote-ai/research-retrievalbench/blob/1145eaf7671bb7689201124352b646f80a7278a6/results/fiqa/chunking_results.json"
+      },
+      {
+        "rank": 9,
+        "model": "E5-small-v2 + sentence chunking",
+        "score": 0.6066,
+        "ci": "0.5738 - 0.6389",
+        "updated": "Jul 2026",
+        "source": "RetrievalBench paper Table 2 (finance rows); values and CIs from https://github.com/anote-ai/research-retrievalbench/blob/1145eaf7671bb7689201124352b646f80a7278a6/results/fiqa/chunking_results.json"
+      },
+      {
+        "rank": 10,
+        "model": "OpenAI text-embedding-3-small + semantic chunking",
+        "score": 0.5852,
+        "ci": "0.5538 - 0.6155",
+        "updated": "Jul 2026",
+        "source": "RetrievalBench paper Table 2 (finance rows); values and CIs from https://github.com/anote-ai/research-retrievalbench/blob/1145eaf7671bb7689201124352b646f80a7278a6/results/fiqa/chunking_results.json"
+      },
+      {
+        "rank": 11,
+        "model": "BGE-small-en-v1.5 + semantic chunking",
+        "score": 0.4853,
+        "ci": "0.4540 - 0.5182",
+        "updated": "Jul 2026",
+        "source": "RetrievalBench paper Table 2 (finance rows); values and CIs from https://github.com/anote-ai/research-retrievalbench/blob/1145eaf7671bb7689201124352b646f80a7278a6/results/fiqa/chunking_results.json"
+      },
+      {
+        "rank": 12,
+        "model": "E5-small-v2 + semantic chunking",
+        "score": 0.4713,
+        "ci": "0.4351 - 0.5043",
+        "updated": "Jul 2026",
+        "source": "RetrievalBench paper Table 2 (finance rows); values and CIs from https://github.com/anote-ai/research-retrievalbench/blob/1145eaf7671bb7689201124352b646f80a7278a6/results/fiqa/chunking_results.json"
+      },
+      {
+        "rank": 13,
+        "model": "BM25 + fixed-512 chunking",
+        "score": 0.3457,
+        "ci": "0.3153 - 0.3750",
+        "updated": "Jul 2026",
+        "source": "RetrievalBench paper Table 2 (finance rows); values and CIs from https://github.com/anote-ai/research-retrievalbench/blob/1145eaf7671bb7689201124352b646f80a7278a6/results/fiqa/chunking_results.json"
+      },
+      {
+        "rank": 14,
+        "model": "BM25 + recursive chunking",
+        "score": 0.3288,
+        "ci": "0.2971 - 0.3583",
+        "updated": "Jul 2026",
+        "source": "RetrievalBench paper Table 2 (finance rows); values and CIs from https://github.com/anote-ai/research-retrievalbench/blob/1145eaf7671bb7689201124352b646f80a7278a6/results/fiqa/chunking_results.json"
+      },
+      {
+        "rank": 15,
+        "model": "BM25 + sentence chunking",
+        "score": 0.2846,
+        "ci": "0.2571 - 0.3120",
+        "updated": "Jul 2026",
+        "source": "RetrievalBench paper Table 2 (finance rows); values and CIs from https://github.com/anote-ai/research-retrievalbench/blob/1145eaf7671bb7689201124352b646f80a7278a6/results/fiqa/chunking_results.json"
+      },
+      {
+        "rank": 16,
+        "model": "BM25 + semantic chunking",
+        "score": 0.2535,
+        "ci": "0.2266 - 0.2788",
+        "updated": "Jul 2026",
+        "source": "RetrievalBench paper Table 2 (finance rows); values and CIs from https://github.com/anote-ai/research-retrievalbench/blob/1145eaf7671bb7689201124352b646f80a7278a6/results/fiqa/chunking_results.json"
+      }
+    ],
+    "research": {
+      "benchmark": "RetrievalBench",
+      "seo_description": "RetrievalBench finance (FiQA) leaderboard: NDCG@10 for 4 chunking strategies x BM25, OpenAI, BGE and E5 retrievers. Best: OpenAI + fixed-512 chunks (0.739).",
+      "blog_url": "https://anote.ai/blog/frontier-retrievalbench",
+      "repo_url": "https://github.com/anote-ai/research-retrievalbench",
+      "paper_url": "https://drive.google.com/file/d/1VyIlt8kjBquqWq67m0xMZ-av22NO4sxZ/view?usp=sharing",
+      "paper_title": "RetrievalBench: Chunking and Embedding Choice as First-Class Variables in Cross-Domain Retrieval Evaluation",
+      "arxiv_id": null,
+      "extra_links": [
+        {
+          "label": "OpenReview",
+          "url": "https://openreview.net/forum?id=nbFVGlmM45&noteId=nbFVGlmM45"
+        }
+      ],
+      "notes": "Scores are on a subsampled corpus (2,000 documents plus all relevant documents), so compare rows with each other, not with full-corpus BEIR leaderboards. The other 11 domains are in the repository.",
+      "bibtex": "@misc{liang2026retrievalbench,\n  title         = {RetrievalBench: Chunking and Embedding Choice as First-Class Variables in Cross-Domain Retrieval Evaluation},\n  author        = {Liang, Hannah and others},\n  year          = {2026},\n  eprint        = {XXXX.XXXXX},\n  archivePrefix = {arXiv},\n  howpublished  = {\\url{https://github.com/anote-ai/research-retrievalbench}},\n  note          = {Preprint; arXiv ID pending}\n}"
+    }
+  },
+  {
+    "name": "Financial Document Retrieval (FinanceBench)",
+    "slug": "financial-document-retrieval-financebench",
+    "path": "/dataset/financial-document-retrieval-financebench",
+    "task_type": "document_qa",
+    "evaluation_metric": "exact_match",
+    "lower_is_better": false,
+    "url": "https://github.com/anote-ai/research-financialdocumentretrieval",
+    "description": "A seven-condition ablation of RAG retrieval techniques on 133 FinanceBench analyst questions over 10-K, 10-Q and earnings filings: semantic and recursive chunking, cross-encoder reranking, metadata enrichment, HyDE query expansion and a full hybrid, all answering with GPT-4o. Ranked by exact match, counted when the gold answer appears in the model's answer; ROUGE-L F1 is reported alongside because the two metrics rank the conditions differently.",
+    "models": [
+      {
+        "rank": 1,
+        "model": "GPT-4o RAG + semantic chunking (C1)",
+        "score": 0.135,
+        "updated": "Aug 2026",
+        "source": "FinDocRetrieval blog post results table: https://github.com/anote-ai/research-financialdocumentretrieval/blob/c8619d1da900f0a3f071559ade4464f998d90b3e/blog_post.md"
+      },
+      {
+        "rank": 2,
+        "model": "GPT-4o RAG baseline, fixed 512-token chunks (C0)",
+        "score": 0.128,
+        "updated": "Aug 2026",
+        "source": "FinDocRetrieval blog post results table: https://github.com/anote-ai/research-financialdocumentretrieval/blob/c8619d1da900f0a3f071559ade4464f998d90b3e/blog_post.md"
+      },
+      {
+        "rank": 3,
+        "model": "GPT-4o RAG + cross-encoder reranking (C3)",
+        "score": 0.128,
+        "updated": "Aug 2026",
+        "source": "FinDocRetrieval blog post results table: https://github.com/anote-ai/research-financialdocumentretrieval/blob/c8619d1da900f0a3f071559ade4464f998d90b3e/blog_post.md"
+      },
+      {
+        "rank": 4,
+        "model": "GPT-4o RAG + recursive chunking (C2)",
+        "score": 0.12,
+        "updated": "Aug 2026",
+        "source": "FinDocRetrieval blog post results table: https://github.com/anote-ai/research-financialdocumentretrieval/blob/c8619d1da900f0a3f071559ade4464f998d90b3e/blog_post.md"
+      },
+      {
+        "rank": 5,
+        "model": "GPT-4o RAG + metadata enrichment (C4)",
+        "score": 0.105,
+        "updated": "Aug 2026",
+        "source": "FinDocRetrieval blog post results table: https://github.com/anote-ai/research-financialdocumentretrieval/blob/c8619d1da900f0a3f071559ade4464f998d90b3e/blog_post.md"
+      },
+      {
+        "rank": 6,
+        "model": "GPT-4o RAG + hybrid, all techniques (C6)",
+        "score": 0.098,
+        "updated": "Aug 2026",
+        "source": "FinDocRetrieval blog post results table: https://github.com/anote-ai/research-financialdocumentretrieval/blob/c8619d1da900f0a3f071559ade4464f998d90b3e/blog_post.md"
+      },
+      {
+        "rank": 7,
+        "model": "GPT-4o RAG + HyDE query expansion (C5)",
+        "score": 0.098,
+        "updated": "Aug 2026",
+        "source": "FinDocRetrieval blog post results table: https://github.com/anote-ai/research-financialdocumentretrieval/blob/c8619d1da900f0a3f071559ade4464f998d90b3e/blog_post.md"
+      }
+    ],
+    "research": {
+      "benchmark": "Financial Document Retrieval",
+      "seo_description": "FinanceBench RAG leaderboard: 7 retrieval setups (semantic chunking, reranking, HyDE, hybrid) with GPT-4o on 133 SEC-filing questions, by exact match.",
+      "blog_url": "https://anote.ai/blog/frontier-financial-document-retrieval",
+      "repo_url": "https://github.com/anote-ai/research-financialdocumentretrieval",
+      "paper_url": "https://drive.google.com/file/d/11b4exi4WBwYKM_12Syt_k-MytRRCpKxA/view?usp=drive_link",
+      "paper_title": "When Standard Retrieval Optimizations Fail: A Cost-Aware Ablation Study of RAG Pipelines for Financial Document Question Answering",
+      "arxiv_id": null,
+      "extra_links": [],
+      "notes": "Numbers are from the blog post, which matches the per-question run files in results/runs. The 'Ablation Design' table in the repository README (F1 0.52-0.66) does not match those runs.",
+      "bibtex": "@misc{hong2026findocretrieval,\n  title         = {When Standard Retrieval Optimizations Fail: A Cost-Aware Ablation Study of RAG Pipelines for Financial Document Question Answering},\n  author        = {Hong, Elaine},\n  year          = {2026},\n  eprint        = {XXXX.XXXXX},\n  archivePrefix = {arXiv},\n  howpublished  = {\\url{https://github.com/anote-ai/research-financialdocumentretrieval}},\n  note          = {Preprint; arXiv ID pending}\n}"
+    }
+  },
+  {
+    "name": "Semantic Chunking for FinanceBench QA",
+    "slug": "semantic-chunking-for-financebench-qa",
+    "path": "/dataset/semantic-chunking-for-financebench-qa",
+    "task_type": "document_qa",
+    "evaluation_metric": "rouge_l",
+    "lower_is_better": false,
+    "url": "https://github.com/anote-ai/Research-semanticchunking",
+    "description": "Does semantic-boundary chunking or a hybrid retrieval pipeline beat plain fixed chunking on financial filings? A controlled three-condition ablation on a stratified 14-question FinanceBench sample, with Claude generating every answer and TF-IDF/BM25 retrieval. Ranked by mean ROUGE-L F1 in Run 1; Run 2, an independent repeat, is shown alongside. Neither enhancement beat the baseline in either run.",
+    "models": [
+      {
+        "rank": 1,
+        "model": "Claude + fixed word-based chunking, TF-IDF (C0 baseline)",
+        "score": 0.152,
+        "updated": "Jul 2026",
+        "source": "Semantic chunking README 'Ablation Design' table (Run 1 and Run 2 mean ROUGE-L F1): https://github.com/anote-ai/research-semanticchunking/blob/44b4ed55d50b4a8ab5aa3800f6afa394f2f00921/README.md"
+      },
+      {
+        "rank": 2,
+        "model": "Claude + hybrid: structure-aware chunks, BM25/TF-IDF fusion, metadata, HyDE, reranking (C6)",
+        "score": 0.128,
+        "updated": "Jul 2026",
+        "source": "Semantic chunking README 'Ablation Design' table (Run 1 and Run 2 mean ROUGE-L F1): https://github.com/anote-ai/research-semanticchunking/blob/44b4ed55d50b4a8ab5aa3800f6afa394f2f00921/README.md"
+      },
+      {
+        "rank": 3,
+        "model": "Claude + semantic paragraph/sentence-boundary chunking (C1)",
+        "score": 0.117,
+        "updated": "Jul 2026",
+        "source": "Semantic chunking README 'Ablation Design' table (Run 1 and Run 2 mean ROUGE-L F1): https://github.com/anote-ai/research-semanticchunking/blob/44b4ed55d50b4a8ab5aa3800f6afa394f2f00921/README.md"
+      }
+    ],
+    "research": {
+      "benchmark": "Semantic Chunking for FinanceBench QA",
+      "seo_description": "Semantic vs. fixed chunking on FinanceBench: ROUGE-L of baseline, semantic and hybrid retrieval pipelines for financial document QA across two independent runs.",
+      "blog_url": "https://anote.ai/blog/frontier-semantic-chunking",
+      "repo_url": "https://github.com/anote-ai/Research-semanticchunking",
+      "paper_url": "https://github.com/anote-ai/Research-semanticchunking/blob/main/paper.pdf",
+      "paper_title": "Semantic Chunking and Hybrid Retrieval for Financial Document QA: An Ablation Study on FinanceBench",
+      "arxiv_id": null,
+      "extra_links": [
+        {
+          "label": "OpenReview",
+          "url": "https://openreview.net/forum?id=fMXab2aae9"
+        }
+      ],
+      "notes": "14 questions: enough to catch a large effect, not fine distinctions. C1's shortfall vs. the baseline is significant in Run 1 (95% CI [-0.073, -0.002]); C6's is not significant in either run.",
+      "bibtex": "@misc{uzoama2026semanticchunking,\n  title         = {Semantic Chunking and Hybrid Retrieval for Financial Document QA: An Ablation Study on FinanceBench},\n  author        = {Uzoama, Ebuka Chidubem Prudence},\n  year          = {2026},\n  eprint        = {XXXX.XXXXX},\n  archivePrefix = {arXiv},\n  howpublished  = {\\url{https://github.com/anote-ai/Research-semanticchunking}},\n  note          = {Preprint; arXiv ID pending}\n}"
+    }
+  },
+  {
+    "name": "AnnotateBench (Financial PhraseBank)",
+    "slug": "annotatebench-financial-phrasebank",
+    "path": "/dataset/annotatebench-financial-phrasebank",
+    "task_type": "text_classification",
+    "evaluation_metric": "macro_f1",
+    "lower_is_better": false,
+    "url": "https://github.com/anote-ai/research-annotatebench",
+    "description": "AnnotateBench compares annotation strategies under fixed labeling budgets: how much labeled data does each strategy need? This leaderboard shows Financial PhraseBank sentiment classification with a TF-IDF + logistic-regression classifier trained on the labels each strategy selects, reported at each strategy's best budget (500 or 1,000 labels) and ranked by test macro-F1, averaged over five seeds.",
+    "models": [
+      {
+        "rank": 1,
+        "model": "Uncertainty active learning (500 labels) + TF-IDF logistic regression",
+        "score": 0.7546,
+        "ci": "0.7416 - 0.7676",
+        "updated": "Aug 2026",
+        "source": "AnnotateBench results/benchmark_best_by_strategy.csv (mean of 5 seeds, base cost scenario): https://github.com/anote-ai/research-annotatebench/blob/dee5335cc2f989e21142bbd1b6239c2cf324982d/results/benchmark_best_by_strategy.csv; 95% CI from results/paper_core_summary.csv: https://github.com/anote-ai/research-annotatebench/blob/dee5335cc2f989e21142bbd1b6239c2cf324982d/results/paper_core_summary.csv"
+      },
+      {
+        "rank": 2,
+        "model": "Hybrid active learning (1,000 labels) + TF-IDF logistic regression",
+        "score": 0.7506,
+        "updated": "Aug 2026",
+        "source": "AnnotateBench results/benchmark_best_by_strategy.csv (mean of 5 seeds, base cost scenario): https://github.com/anote-ai/research-annotatebench/blob/dee5335cc2f989e21142bbd1b6239c2cf324982d/results/benchmark_best_by_strategy.csv"
+      },
+      {
+        "rank": 3,
+        "model": "Random sampling (1,000 labels) + TF-IDF logistic regression",
+        "score": 0.7158,
+        "updated": "Aug 2026",
+        "source": "AnnotateBench results/benchmark_best_by_strategy.csv (mean of 5 seeds, base cost scenario): https://github.com/anote-ai/research-annotatebench/blob/dee5335cc2f989e21142bbd1b6239c2cf324982d/results/benchmark_best_by_strategy.csv"
+      },
+      {
+        "rank": 4,
+        "model": "Diversity active learning (1,000 labels) + TF-IDF logistic regression",
+        "score": 0.6681,
+        "updated": "Aug 2026",
+        "source": "AnnotateBench results/benchmark_best_by_strategy.csv (mean of 5 seeds, base cost scenario): https://github.com/anote-ai/research-annotatebench/blob/dee5335cc2f989e21142bbd1b6239c2cf324982d/results/benchmark_best_by_strategy.csv"
+      }
+    ],
+    "research": {
+      "benchmark": "AnnotateBench",
+      "seo_description": "AnnotateBench leaderboard: macro-F1 of active learning vs. random annotation strategies on Financial PhraseBank at 500-1,000 labels, with annotation cost.",
+      "blog_url": "https://anote.ai/blog/frontier-annotatebench",
+      "repo_url": "https://github.com/anote-ai/research-annotatebench",
+      "hf_url": "https://huggingface.co/datasets/anote-ai/annotatebench-results",
+      "paper_url": "https://drive.google.com/file/d/1u091t3_a_T6RU4rw1qhJK33PX3qQPvg0/view?usp=sharing",
+      "paper_title": "AnnotateBench: How Much Labeled Data Do Text-Classification Annotation Strategies Need?",
+      "arxiv_id": null,
+      "extra_links": [],
+      "notes": "Rows are annotation strategies, each at the budget where it scored best, so budgets differ between rows. The other nine datasets are in the repository.",
+      "bibtex": "@misc{zhang2026annotatebench,\n  title         = {AnnotateBench: How Much Labeled Data Do Text-Classification Annotation Strategies Need?},\n  author        = {Zhang, Aitong},\n  year          = {2026},\n  eprint        = {XXXX.XXXXX},\n  archivePrefix = {arXiv},\n  howpublished  = {\\url{https://github.com/anote-ai/research-annotatebench}},\n  note          = {Preprint; arXiv ID pending}\n}"
+    }
+  },
+  {
+    "name": "OrchestraBench Routing",
+    "slug": "orchestrabench-routing",
+    "path": "/dataset/orchestrabench-routing",
+    "task_type": "text_classification",
+    "evaluation_metric": "accuracy",
+    "lower_is_better": false,
+    "url": "https://github.com/anote-ai/research-orchestratebench",
+    "description": "OrchestraBench evaluates the orchestration layer of multi-agent LLM systems. This leaderboard is its routing experiment: given a task description, choose decompose, direct_tool, code_execution or reason_only. 26 expert-labelled cases: 16 where surface cues match intent and 10 adversarial cases where they mislead. Ranked by accuracy; submissions are scored automatically against the gold labels.",
+    "models": [
+      {
+        "rank": 1,
+        "model": "LLM-as-Router (Claude Sonnet 4.6)",
+        "score": 1.0,
+        "updated": "Jul 2026",
+        "source": "OrchestraBench PAPER.md Section 5.1 table: https://github.com/anote-ai/research-orchestratebench/blob/5c3738c19d99cbe9aa152b0ea9b7d903ea4f93db/PAPER.md"
+      },
+      {
+        "rank": 2,
+        "model": "TF-IDF description router",
+        "score": 0.9231,
+        "updated": "Jul 2026",
+        "source": "OrchestraBench data/measured/exp1_baselines.csv: https://github.com/anote-ai/research-orchestratebench/blob/5c3738c19d99cbe9aa152b0ea9b7d903ea4f93db/data/measured/exp1_baselines.csv"
+      },
+      {
+        "rank": 3,
+        "model": "HeuristicPolicy (keyword/flag rules)",
+        "score": 0.6154,
+        "updated": "Jul 2026",
+        "source": "OrchestraBench PAPER.md Section 5.1 table: https://github.com/anote-ai/research-orchestratebench/blob/5c3738c19d99cbe9aa152b0ea9b7d903ea4f93db/PAPER.md; exact value from OrchestraBench data/measured/exp1_baselines.csv: https://github.com/anote-ai/research-orchestratebench/blob/5c3738c19d99cbe9aa152b0ea9b7d903ea4f93db/data/measured/exp1_baselines.csv"
+      },
+      {
+        "rank": 4,
+        "model": "FixedPolicy (always the same decision)",
+        "score": 0.2308,
+        "updated": "Jul 2026",
+        "source": "OrchestraBench PAPER.md Section 5.1 table: https://github.com/anote-ai/research-orchestratebench/blob/5c3738c19d99cbe9aa152b0ea9b7d903ea4f93db/PAPER.md; exact value from OrchestraBench data/measured/exp1_baselines.csv: https://github.com/anote-ai/research-orchestratebench/blob/5c3738c19d99cbe9aa152b0ea9b7d903ea4f93db/data/measured/exp1_baselines.csv"
+      }
+    ],
+    "research": {
+      "benchmark": "OrchestraBench",
+      "seo_description": "OrchestraBench routing leaderboard: accuracy choosing decompose, tool, code or reason for 26 agent tasks. Claude Sonnet 4.6 router 1.00 vs keyword rules 0.62.",
+      "blog_url": "https://anote.ai/blog/frontier-orchestrabench",
+      "repo_url": "https://github.com/anote-ai/research-orchestratebench",
+      "hf_url": "https://huggingface.co/datasets/anote-ai/Orchestratebench",
+      "paper_url": "https://arxiv.org/abs/2608.05263",
+      "paper_title": "OrchestraBench: Evaluating Multi-Agent Orchestration Failure Modes, Recovery, and Decomposition Quality",
+      "arxiv_id": "2608.05263",
+      "extra_links": [
+        {
+          "label": "Papers With Code",
+          "url": "https://paperswithcode.co/paper/2608.05263"
+        }
+      ],
+      "notes": "The paper's policies also see task flags (requires_code, requires_retrieval); leaderboard submissions see only the description text. Gold labels: https://github.com/anote-ai/research-orchestratebench/blob/5c3738c19d99cbe9aa152b0ea9b7d903ea4f93db/src/orchestratebench/routing_comparison.py. The oracle ceiling row is omitted.",
+      "bibtex": "@misc{chen2026orchestrabench,\n  title         = {OrchestraBench: Evaluating Multi-Agent Orchestration Failure Modes, Recovery, and Decomposition Quality},\n  author        = {Chen, Yidian and Gu, Yingzi and Vidra, Natan and Setty, Spurthi and Zheng, Sharon},\n  year          = {2026},\n  eprint        = {2608.05263},\n  archivePrefix = {arXiv},\n  howpublished  = {\\url{https://github.com/anote-ai/research-orchestratebench}},\n  note          = {Preprint}\n}"
+    }
   }
 ]

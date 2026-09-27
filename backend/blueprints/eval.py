@@ -225,18 +225,34 @@ def import_hf_dataset_public():
         preview["reference_data"] = rd
         return jsonify({"success": True, "dataset": preview})
 
+    # replace_existing: refresh the reference data of an existing dataset (e.g. a seeded research
+    # benchmark card) and keep its submissions, instead of failing on the duplicate name.
+    replace_existing = str(data.get("replace_existing", "")).lower() in ("1", "true", "yes")
+    replaced = False
     conn, cursor = get_db_connection()
     if conn and cursor:
         try:
-            cursor.execute(
-                "INSERT INTO benchmark_datasets (name, task_type, evaluation_metric, reference_data, active) VALUES (%s, %s, %s, %s, TRUE)",
-                (
-                    payload["name"],
-                    payload["task_type"],
-                    payload["evaluation_metric"],
-                    json.dumps(payload["reference_data"]),
-                ),
-            )
+            if replace_existing:
+                cursor.execute(
+                    "UPDATE benchmark_datasets SET task_type = %s, evaluation_metric = %s, reference_data = %s, active = TRUE WHERE name = %s",
+                    (
+                        payload["task_type"],
+                        payload["evaluation_metric"],
+                        json.dumps(payload["reference_data"]),
+                        payload["name"],
+                    ),
+                )
+                replaced = cursor.rowcount > 0
+            if not replaced:
+                cursor.execute(
+                    "INSERT INTO benchmark_datasets (name, task_type, evaluation_metric, reference_data, active) VALUES (%s, %s, %s, %s, TRUE)",
+                    (
+                        payload["name"],
+                        payload["task_type"],
+                        payload["evaluation_metric"],
+                        json.dumps(payload["reference_data"]),
+                    ),
+                )
             conn.commit()
         except Exception as e:
             if 'Duplicate' in str(e) or 'UNIQUE' in str(e):
@@ -249,21 +265,26 @@ def import_hf_dataset_public():
             except Exception:
                 pass
     else:
-        if any(d.get("name") == payload["name"] for d in _STORE["datasets"]):
+        existing = next((d for d in _STORE["datasets"] if d.get("name") == payload["name"]), None)
+        if existing and not replace_existing:
             return jsonify({"success": False, "error": "Dataset with this name already exists"}), 400
-        _STORE["datasets"].append(payload)
-        LEADERBOARD_DATA.append({
-            "id": str(uuid.uuid4()),
-            "name": payload["name"],
-            "task_type": payload["task_type"],
-            "description": payload["reference_data"].get("description"),
-            "url": payload["reference_data"].get("url"),
-            "models": [],
-        })
+        if existing:
+            existing.update(payload)
+            replaced = True
+        else:
+            _STORE["datasets"].append(payload)
+            LEADERBOARD_DATA.append({
+                "id": str(uuid.uuid4()),
+                "name": payload["name"],
+                "task_type": payload["task_type"],
+                "description": payload["reference_data"].get("description"),
+                "url": payload["reference_data"].get("url"),
+                "models": [],
+            })
 
     return jsonify({
         "success": True,
-        "message": "Dataset imported",
+        "message": "Dataset reference data replaced" if replaced else "Dataset imported",
         "dataset": {
             "name": payload["name"],
             "task_type": payload["task_type"],

@@ -135,7 +135,8 @@ export function datasetBaseName(name) {
 export function formatScore(score) {
   if (typeof score !== "number" || Number.isNaN(score)) return score == null ? "" : String(score);
   if (Math.abs(score) >= 10) return score.toFixed(1);
-  return Number(score.toFixed(3)).toString();
+  // Up to three decimals, at least two: 0.632, 0.90, 1.00.
+  return score.toFixed(3).replace(/(\.\d\d)0$/, "$1");
 }
 
 export function rankModels(models, dataset) {
@@ -177,6 +178,10 @@ export function datasetDescription(dataset, models) {
   const top = ranked.map((m) => `${m.model} (${formatScore(m.score)})`).join(", ");
   const task = taskLabel(dataset && dataset.task_type);
   const metric = metricLabel(dataset && dataset.evaluation_metric);
+  if (dataset && dataset.research && dataset.research.seo_description) {
+    // Research benchmarks carry a hand-written description (their configuration names are too long).
+    return truncateAtWord(dataset.research.seo_description);
+  }
   const base = datasetBaseName(dataset && dataset.name) || "Benchmark";
   const lower = isLowerBetter(dataset) ? ", lower is better" : "";
   const parts = [`${base} leaderboard ranking AI models by ${metric}${lower}.`];
@@ -221,7 +226,12 @@ export function datasetJsonLd(dataset, models, siteUrl) {
   };
   if (sameAs.length) datasetNode.sameAs = sameAs;
   if (dataset.license) datasetNode.license = dataset.license;
-  if (research.paper_url) datasetNode.citation = research.paper_url;
+  if (research.paper_url) {
+    datasetNode.citation = research.paper_title
+      ? { "@type": "ScholarlyArticle", name: research.paper_title, url: research.paper_url }
+      : research.paper_url;
+  }
+  if (research.blog_url) datasetNode.subjectOf = { "@type": "BlogPosting", url: research.blog_url };
   const itemList = {
     "@type": "ItemList",
     "@id": `${pageUrl}#rankings`,

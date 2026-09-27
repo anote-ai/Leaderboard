@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link, useParams, useNavigate, useLocation } from 'react-router-dom';
 import ReactGA from 'react-ga4';
 import TaskAdvancedMetricsPanel from './TaskAdvancedMetricsPanel';
+import ResearchBenchmarkPanel from './ResearchBenchmarkPanel';
 import Seo, { SITE_URL } from '../../seo/Seo';
 import DATASET_CATALOG from '../../seo/datasetCatalog.json';
 import { datasetPath, datasetSeo, datasetSlug, findCatalogEntry } from '../../seo/seoCore.mjs';
@@ -205,6 +206,8 @@ const DatasetDetails = () => {
             {typeof ds.size === 'number' && (
               <p className="text-gray-400 text-sm mt-2">Benchmark size: {ds.size} items</p>
             )}
+
+            <ResearchBenchmarkPanel dataset={catalogEntry} />
 
             {primaryDoc && Object.keys(primaryDoc).length > 0 && (
               <div className="mt-6 border border-[#defe47]/20 rounded-xl p-4 bg-black/20">

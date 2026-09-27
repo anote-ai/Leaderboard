@@ -709,7 +709,43 @@ METRICS_CATALOG = {
             "0.0-0.65": "Fair/Poor",
         },
     },
+    # Agent tool-calling metrics (EnterpriseBench; see docs/research-benchmarks.md)
+    "policy_compliance_rate": {
+        "name": "Policy Compliance Rate",
+        "formula": "1 - (tasks with >= 1 policy violation) / (all tasks)",
+        "range": "0.0 - 1.0 (higher is better)",
+        "description": "Share of tasks where the agent's tool call breaks none of the organizational policies attached to the task, checked against the task's pre- and post-state.",
+        "when_to_use": "Enterprise agent evaluation where following implicit policy matters as much as calling the right tool.",
+        "limitations": "Only as complete as the policy rules annotated on each task; small task sets give wide confidence intervals.",
+    },
+    "policy_violation_rate": {
+        "name": "Policy Violation Rate (PVR)",
+        "formula": "(tasks with >= 1 policy violation) / (all tasks)",
+        "range": "0.0 - 1.0 (lower is better)",
+        "description": "Share of tasks on which the agent's action violated at least one applicable policy rule.",
+        "when_to_use": "Reported alongside syntactic tool-call accuracy to expose unsafe but 'correct' calls.",
+        "limitations": "Binary per task: one violation and many count the same.",
+    },
+    "syntactic_accuracy": {
+        "name": "Syntactic tool-call accuracy",
+        "formula": "0.4 * tool-name match + 0.35 * argument-key Jaccard + 0.25 * argument-value Jaccard",
+        "range": "0.0 - 1.0 (higher is better)",
+        "description": "How closely the agent's tool call matches the reference call, the metric most tool-calling benchmarks optimize.",
+        "when_to_use": "Baseline tool-use correctness.",
+        "limitations": "Says nothing about whether the call was allowed or safe.",
+    },
+    "multi_turn_consistency": {
+        "name": "Multi-Turn Consistency Score (MTCS)",
+        "formula": "1 - (contradicting decision pairs) / (all dependent decision pairs)",
+        "range": "0.0 - 1.0 (higher is better)",
+        "description": "Whether an agent keeps earlier decisions (e.g. priority=HIGH) in later turns unless told to change them.",
+        "when_to_use": "Multi-step agent workflows.",
+        "limitations": "Needs decision annotations per turn.",
+    },
 }
+
+# NDCG@10 is the usual reported cut-off; alias it to the NDCG entry.
+METRICS_CATALOG["ndcg@10"] = {**METRICS_CATALOG["ndcg"], "name": "NDCG@10"}
 
 
 def normalize_task_type_for_metrics(task_type: Optional[str]) -> str:
@@ -840,6 +876,12 @@ def get_metrics_for_task(task_type: str) -> list:
             "median_distance_error",
             "mean_distance_error",
             "accuracy",
+        ],
+        "tool_calling": [
+            "policy_compliance_rate",
+            "policy_violation_rate",
+            "syntactic_accuracy",
+            "multi_turn_consistency",
         ],
         "multilingual": [
             "accuracy",

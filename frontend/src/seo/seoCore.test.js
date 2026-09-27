@@ -62,8 +62,8 @@ describe("dataset titles and descriptions", () => {
       { model: "D", score: 0.1 },
     ];
     const desc = datasetDescription(financebench, models);
-    expect(desc).toContain("Top: A (0.9), B (0.7), C (0.5).");
-    expect(desc).not.toContain("D (0.1)");
+    expect(desc).toContain("Top: A (0.90), B (0.70), C (0.50).");
+    expect(desc).not.toContain("D (0.10)");
     expect(desc.length).toBeLessThanOrEqual(160);
   });
 
@@ -113,5 +113,28 @@ describe("JSON-LD", () => {
 
   it("escapes </script> when serializing", () => {
     expect(serializeJsonLd({ a: "</script><b>" })).not.toContain("</script>");
+  });
+});
+
+describe("research benchmarks", () => {
+  const research = catalog.filter((d) => d.research);
+
+  it("every research dataset links its paper, repo and anote.ai blog post and has BibTeX", () => {
+    expect(research.length).toBeGreaterThan(0);
+    for (const d of research) {
+      expect(d.research.paper_url).toMatch(/^https:\/\//);
+      expect(d.research.repo_url).toMatch(/^https:\/\/github\.com\/anote-ai\//);
+      expect(d.research.blog_url).toMatch(/^https:\/\/anote\.ai\/blog\/frontier-/);
+      expect(d.research.bibtex).toMatch(/^@misc\{/);
+      for (const m of d.models) expect(m.source).toBeTruthy();
+    }
+  });
+
+  it("uses the hand-written description and cites the paper in JSON-LD", () => {
+    const d = research[0];
+    expect(datasetDescription(d, d.models)).toBe(d.research.seo_description);
+    const [ds] = datasetJsonLd(d, d.models, "https://leaderboard.anote.ai")["@graph"];
+    expect(ds.citation.url).toBe(d.research.paper_url);
+    expect(ds.subjectOf.url).toBe(d.research.blog_url);
   });
 });
