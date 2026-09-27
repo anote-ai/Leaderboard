@@ -23,6 +23,7 @@ DATASETS: List[Dict[str, Any]] = [
         "task_type": "retrieval",
         "evaluation_metric": "retrieval_accuracy",
         "url": "https://github.com/patronus-ai/financebench",
+        "description": "Retrieval benchmark over FinanceBench questions about public-company SEC filings (10-K, 10-Q, earnings reports). Models and RAG pipelines are ranked by how often they retrieve the evidence page needed to answer the question.",
         "models": [
             {"rank": 1, "model": "GPT-4o Fine Tuned", "score": 0.632, "ci": "0.61 - 0.65", "updated": "Oct 2024"},
             {"rank": 2, "model": "Mistral Fine Tuned", "score": 0.612, "ci": "0.59 - 0.63", "updated": "Oct 2024"},
@@ -37,6 +38,7 @@ DATASETS: List[Dict[str, Any]] = [
         "task_type": "text_classification",
         "evaluation_metric": "accuracy",
         "url": "https://huggingface.co/datasets/m-ric/amazon_product_reviews_datafiniti",
+        "description": "Product-review classification on Amazon reviews (Datafiniti). Models are ranked by accuracy at predicting the review label from the review text.",
         "models": [
             {"rank": 1, "model": "GPT-4o", "score": 0.94, "ci": "0.92 - 0.96", "updated": "Sep 2024"},
             {"rank": 2, "model": "GPT-3.5", "score": 0.91, "ci": "0.89 - 0.93", "updated": "Sep 2024"},
@@ -51,6 +53,7 @@ DATASETS: List[Dict[str, Any]] = [
         "task_type": "document_qa",
         "evaluation_metric": "exact_match",
         "url": "https://huggingface.co/datasets/llmware/rag_instruct_benchmark_tester",
+        "description": "Retrieval-augmented question answering from llmware's RAG Instruct benchmark: each question comes with a context passage, and answers are ranked by exact match against the reference answer.",
         "models": [
             {"rank": 1, "model": "GPT-4o", "score": 0.89, "ci": "0.87 - 0.91", "updated": "Oct 2024"},
             {"rank": 2, "model": "GPT 3.5", "score": 0.86, "ci": "0.84 - 0.88", "updated": "Oct 2024"},
@@ -65,6 +68,7 @@ DATASETS: List[Dict[str, Any]] = [
         "task_type": "text_classification",
         "evaluation_metric": "f1",
         "url": "https://huggingface.co/datasets/takala/financial_phrasebank",
+        "description": "Financial sentiment classification on Financial PhraseBank: label financial news sentences as positive, negative, or neutral. Models are ranked by F1.",
         "models": [
             {"rank": 1, "model": "Gemini", "score": 0.95, "ci": "0.93 - 0.97", "updated": "Sep 2024"},
             {"rank": 2, "model": "GPT-4o", "score": 0.93, "ci": "0.91 - 0.95", "updated": "Sep 2024"},
@@ -79,6 +83,7 @@ DATASETS: List[Dict[str, Any]] = [
         "task_type": "text_classification",
         "evaluation_metric": "accuracy",
         "url": "https://huggingface.co/datasets/CogComp/trec",
+        "description": "TREC question classification: assign each question to its answer-type category (e.g. location, number, person). Models are ranked by accuracy.",
         "models": [
             {"rank": 1, "model": "Claude 2", "score": 0.85, "ci": "0.83 - 0.87", "updated": "Sep 2024"},
             {"rank": 2, "model": "GPT-4o", "score": 0.82, "ci": "0.80 - 0.84", "updated": "Sep 2024"},
@@ -92,6 +97,7 @@ DATASETS: List[Dict[str, Any]] = [
         "task_type": "text_classification",
         "evaluation_metric": "accuracy",
         "url": "https://huggingface.co/datasets/takala/financial_phrasebank",
+        "description": "Banking intent and sentiment classification on short customer and financial texts. Models are ranked by accuracy.",
         "models": [
             {"rank": 1, "model": "GPT-4o", "score": 0.93, "ci": "0.91 - 0.95", "updated": "Sep 2024"},
             {"rank": 2, "model": "Gemini", "score": 0.91, "ci": "0.89 - 0.93", "updated": "Sep 2024"},
@@ -105,6 +111,7 @@ DATASETS: List[Dict[str, Any]] = [
         "task_type": "text_classification",
         "evaluation_metric": "accuracy",
         "url": "https://huggingface.co/datasets/vipulgupta/arc-smart",
+        "description": "ARC-SMART, a filtered version of the AI2 Reasoning Challenge: grade-school science multiple-choice questions. Models are ranked by accuracy.",
         "models": [
             {"rank": 1, "model": "Qwen2-72B-Instruct", "score": 0.83, "updated": "Oct-2024"},
             {"rank": 2, "model": "Meta-Llama-3.1-70B-Instruct", "score": 0.819, "updated": "Oct-2024"},
@@ -120,6 +127,7 @@ DATASETS: List[Dict[str, Any]] = [
         "task_type": "text_classification",
         "evaluation_metric": "accuracy",
         "url": "https://huggingface.co/datasets/vipulgupta/mmlu-smart",
+        "description": "MMLU-SMART, a filtered version of MMLU covering multiple-choice knowledge questions across academic subjects. Models are ranked by accuracy.",
         "models": [
             {"rank": 1, "model": "Qwen2-72B-Instruct", "score": 0.743, "updated": "Oct-2024"},
             {"rank": 2, "model": "Meta-Llama-3.1-70B-Instruct", "score": 0.714, "updated": "Oct-2024"},
@@ -135,6 +143,7 @@ DATASETS: List[Dict[str, Any]] = [
         "task_type": "text_classification",
         "evaluation_metric": "accuracy",
         "url": "https://huggingface.co/datasets/vipulgupta/commonsense_qa_smart",
+        "description": "CommonsenseQA-SMART, a filtered version of CommonsenseQA: multiple-choice questions that require everyday commonsense reasoning. Models are ranked by accuracy.",
         "models": [
             {"rank": 1, "model": "Qwen2-72B-Instruct", "score": 0.845, "updated": "Oct-2024"},
             {"rank": 2, "model": "Yi-1.5-34B-Chat", "score": 0.776, "updated": "Oct-2024"},
@@ -150,6 +159,7 @@ DATASETS: List[Dict[str, Any]] = [
         "task_type": "geolocation",
         "evaluation_metric": "median_distance_error",
         "url": "https://github.com/njspyx/location-inference",
+        "description": "Geolocation inference: predict where an image or text was captured. Models are ranked by median great-circle distance error in kilometres (lower is better).",
         "models": [
             {"rank": 1, "model": "GPT-o1", "score": 182.73, "updated": "Feb 2025"},
             {"rank": 2, "model": "GPT-4o", "score": 216.13, "updated": "Feb 2025"},

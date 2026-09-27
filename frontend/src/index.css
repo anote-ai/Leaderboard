@@ -35,3 +35,31 @@ h6{
 .searchBoxCommon{
     @apply py-5;
 }
+
+/* Static HTML written into #root by scripts/postbuild-seo.mjs; replaced once React mounts. */
+.prerendered {
+  max-width: 64rem;
+  margin: 0 auto;
+  padding: 5rem 1rem 2rem;
+  color: #e5e7eb;
+  background: #111827;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  line-height: 1.5;
+}
+.prerendered a {
+  color: #28b2fb;
+}
+.prerendered table {
+  border-collapse: collapse;
+  margin: 1rem 0;
+}
+.prerendered th,
+.prerendered td {
+  border: 1px solid #374151;
+  padding: 0.25rem 0.75rem;
+  text-align: left;
+}
+.prerendered pre {
+  white-space: pre-wrap;
+  font-size: 0.8rem;
+}

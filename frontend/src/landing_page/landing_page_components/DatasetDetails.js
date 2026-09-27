@@ -1,7 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { Link, useParams, useNavigate, useLocation } from 'react-router-dom';
 import ReactGA from 'react-ga4';
 import TaskAdvancedMetricsPanel from './TaskAdvancedMetricsPanel';
+import Seo, { SITE_URL } from '../../seo/Seo';
+import DATASET_CATALOG from '../../seo/datasetCatalog.json';
+import { datasetPath, datasetSeo, datasetSlug, findCatalogEntry } from '../../seo/seoCore.mjs';
 
 const API_BASE = process.env.REACT_APP_API_BASE || process.env.REACT_APP_API_ENDPOINT || 'http://localhost:5001';
 
@@ -96,20 +99,24 @@ const DatasetDetails = () => {
     }
   }, [name]);
 
+  // Seeded datasets are known at build time; use them for SEO tags and as an offline fallback.
+  const catalogEntry = React.useMemo(() => findCatalogEntry(DATASET_CATALOG, decodedName), [decodedName]);
+  const lookupName = catalogEntry ? catalogEntry.name : decodedName;
+
   useEffect(() => {
     let ignore = false;
     const run = async () => {
       setLoading(true); setError('');
       try {
         const url = new URL(`${API_BASE}/public/dataset_details`);
-        url.searchParams.set('name', decodedName);
+        url.searchParams.set('name', lookupName);
         const res = await fetch(url.toString());
         const json = await res.json();
         if (!res.ok || json.success !== true) throw new Error(json.error || 'Failed to fetch dataset');
         if (!ignore) setData(json);
       } catch (e) {
-        // Fall back to navigation state for static-only datasets
-        const fallback = location.state;
+        // Fall back to navigation state, then the build-time catalog, for static-only datasets
+        const fallback = (location.state && location.state.name) ? location.state : catalogEntry;
         if (fallback && fallback.name) {
           if (!ignore) setData({
             dataset: {
@@ -135,18 +142,35 @@ const DatasetDetails = () => {
         if (!ignore) setLoading(false);
       }
     };
-    if (decodedName) run();
+    if (lookupName) run();
     else setLoading(false);
     return () => { ignore = true; };
-  }, [decodedName, location.state]);
+  }, [lookupName, catalogEntry, location.state]);
 
   const ds = data?.dataset;
+
+  // Legacy links use /dataset/<URL-encoded name>; move them to the canonical slug URL.
+  useEffect(() => {
+    if (!ds?.name || !name) return;
+    const slug = datasetSlug(ds.name);
+    if (slug && name !== slug) navigate(datasetPath(ds.name), { replace: true, state: location.state });
+  }, [ds, name, navigate, location.state]);
+
+  const seoDataset = ds ? { ...(catalogEntry || {}), ...ds, name: ds.name, description: ds.description || catalogEntry?.description } : catalogEntry;
+  const seoModels = data?.top_models?.length ? data.top_models : (catalogEntry?.models || []);
+  const seo = seoDataset ? datasetSeo(seoDataset, seoModels, SITE_URL) : null;
+  const otherDatasets = DATASET_CATALOG.filter((d) => d.name !== (ds?.name || catalogEntry?.name));
   const primaryDoc = ds?.primary_metric_documentation;
   const recommended = ds?.recommended_metrics_for_task || {};
   const primaryKey = (ds?.evaluation_metric || '').toLowerCase().trim();
 
   return (
     <div className="flex flex-col items-center justify-start min-h-screen bg-gray-900 pb-24 mx-3">
+      {seo ? (
+        <Seo title={seo.title} description={seo.description} path={seo.path} jsonLd={seo.jsonLd} />
+      ) : (
+        !loading && <Seo title="Dataset not found | Anote Model Leaderboard" noindex />
+      )}
       <div className="w-full max-w-5xl mt-6 flex justify-end gap-2">
         {ds && <ExportMenu datasetName={ds.name} />}
         <button type="button" onClick={() => navigate('/')} className="px-3 py-1 rounded-md border border-gray-700 text-gray-300 hover:bg-gray-700/40">× Close</button>
@@ -175,8 +199,8 @@ const DatasetDetails = () => {
             {ds.url && (
               <div className="mt-2"><a href={ds.url} className="text-[#defe47] underline" target="_blank" rel="noreferrer">Dataset URL</a></div>
             )}
-            {ds.description && (
-              <p className="text-gray-200 mt-3">{ds.description}</p>
+            {(ds.description || catalogEntry?.description) && (
+              <p className="text-gray-200 mt-3">{ds.description || catalogEntry?.description}</p>
             )}
             {typeof ds.size === 'number' && (
               <p className="text-gray-400 text-sm mt-2">Benchmark size: {ds.size} items</p>
@@ -262,6 +286,23 @@ const DatasetDetails = () => {
           </div>
         ) : null}
       </div>
+      {otherDatasets.length > 0 && (
+        <nav aria-label="More benchmark leaderboards" className="w-full max-w-5xl mt-6">
+          <div className="text-white font-semibold mb-2 text-sm">More benchmark leaderboards</div>
+          <ul className="flex flex-wrap gap-2">
+            {otherDatasets.map((d) => (
+              <li key={d.slug}>
+                <Link
+                  to={d.path}
+                  className="inline-block px-3 py-1 rounded-md border border-gray-800 text-gray-300 text-xs hover:text-[#defe47] hover:border-[#defe47]/40"
+                >
+                  {d.name}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      )}
     </div>
   );
 };

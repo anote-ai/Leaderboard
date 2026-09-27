@@ -2,6 +2,11 @@ from flask import Blueprint, Response, current_app, request, jsonify, redirect
 
 from shared import *
 
+try:
+    from seo_utils import build_sitemap_xml, find_by_slug
+except ImportError:  # pragma: no cover - package-style import
+    from backend.seo_utils import build_sitemap_xml, find_by_slug
+
 bp = Blueprint("leaderboard", __name__)
 app = bp
 
@@ -513,9 +518,8 @@ def get_leaderboard():
 # ---------------------------
 # Public dataset management
 # ---------------------------
-@bp.get('/public/datasets')
-def list_public_datasets():
-    """List active benchmark datasets with basic metadata."""
+def _public_dataset_items() -> list[dict[str, Any]]:
+    """Active benchmark datasets with basic metadata (DB first, in-memory fallback)."""
     conn, cursor = get_db_connection()
     if conn and cursor:
         try:
@@ -544,7 +548,7 @@ def list_public_datasets():
                     "evaluation_metric": r['evaluation_metric'],
                     **extra,
                 })
-            return jsonify({"success": True, "datasets": items})
+            return items
         finally:
             try:
                 cursor.close()
@@ -574,7 +578,43 @@ def list_public_datasets():
             "description": rd.get("description"),
             "size": len(rd.get("source_texts", [])) if isinstance(rd.get("source_texts"), list) else None,
         })
-    return jsonify({"success": True, "datasets": fallback})
+    return fallback
+
+
+@bp.get('/public/datasets')
+def list_public_datasets():
+    """List active benchmark datasets with basic metadata."""
+    return jsonify({"success": True, "datasets": _public_dataset_items()})
+
+
+@bp.get('/public/sitemap.xml')
+def dataset_sitemap():
+    """Sitemap of every public dataset page, for datasets added after the frontend build.
+
+    The frontend build also emits a static ``/sitemap.xml`` for the seeded catalog; this
+    endpoint covers datasets created at runtime (HF imports, admin adds). See docs/seo.md.
+    """
+    names = [item.get("name") for item in _public_dataset_items() if item.get("name")]
+    xml = build_sitemap_xml(names)
+    return Response(xml, mimetype="application/xml", headers={"Cache-Control": "public, max-age=3600"})
+
+
+def _resolve_dataset_name(raw: str) -> str:
+    """Map a ``/dataset/<slug>`` path segment back to a dataset name.
+
+    Exact (case-insensitive) name matches win so existing ``/dataset/<encoded name>`` links keep working.
+    """
+    names: list[str] = []
+    try:
+        names.extend(item.get("name") for item in _public_dataset_items() if item.get("name"))
+    except Exception as e:
+        logger.warning("dataset_name_resolution_failed", extra={"error": str(e)})
+    names.extend(d.get("name") for d in LEADERBOARD_DATA if d.get("name"))
+    names.extend(fb["name"] for fb in UI_FALLBACK_DATASETS_BY_LOWER_NAME.values())
+    lowered = raw.strip().lower()
+    if any((n or "").strip().lower() == lowered for n in names):
+        return raw
+    return find_by_slug(raw, names) or raw
 
 
 @bp.post('/public/add_dataset')
@@ -669,7 +709,7 @@ def dataset_details():
     raw = request.args.get('name')
     if not raw:
         return jsonify({"success": False, "error": "Missing name"}), 400
-    name = raw.strip()
+    name = _resolve_dataset_name(raw.strip()).strip()
     name_lower = name.lower()
 
     conn, cursor = get_db_connection()

@@ -12,6 +12,8 @@ import { Helmet } from "react-helmet";
 import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { robotHeader } from "../util/RobotHeader";
+import Seo from "../seo/Seo";
+import { HOME_DESCRIPTION, SITE_NAME } from "../seo/seoCore.mjs";
 import Leaderboard from "./landing_page_components/Leaderboard";
 import SubmitToLeaderboard from "./landing_page_components/SubmitToLeaderboard";
 import AdminLeaderboardManager from "./landing_page_components/AdminLeaderboardManager";
@@ -50,6 +52,23 @@ import OAuthCallback from "./landing_page_components/OAuthCallback";
 import CreateLeaderboardFromHF from "./landing_page_components/CreateLeaderboardFromHF";
 import FAQ from "./landing_page_components/FAQ";
 
+// Routes that are account-, admin- or form-specific: keep them out of search results.
+const NOINDEX_PREFIXES = [
+  submittoleaderboardPath,
+  mySubmissionsPath,
+  "/leaderboard/admin",
+  loginPath,
+  "/oauth",
+  addDatasetPath,
+  createLeaderboardPath,
+  requestDatasetPath,
+  "/submissions/",
+];
+
+function isNoindexPath(pathname) {
+  return NOINDEX_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(prefix.endsWith("/") ? prefix : `${prefix}/`));
+}
+
 function LandingPage() {
   const location = useLocation();
 
@@ -84,10 +103,14 @@ function LandingPage() {
 
   return (
     <div className="bg-[#111827] min-h-screen">
-      <Helmet>
-        <title>Anote - Model Leaderboard</title>
-        {robotMetaTag}
-      </Helmet>
+      <Helmet>{robotMetaTag}</Helmet>
+      {/* Route-level defaults; pages with their own <Seo> (home, FAQ, dataset, model) override these. */}
+      <Seo
+        title={SITE_NAME}
+        description={HOME_DESCRIPTION}
+        path={location.pathname}
+        noindex={isNoindexPath(location.pathname)}
+      />
 
       <HeaderBar />
       {/* <Banner open={open} /> */}
