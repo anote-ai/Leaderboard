@@ -1,0 +1,65 @@
+[
+  {
+    "question": "How is this different from MMLU, HELM, BIG-Bench, or Chatbot Arena?",
+    "answer": "Those benchmarks test general capability on academic tasks. Anote tests performance on your specific task and data. A model that scores 90% on MMLU might score 60% on your customer support classification problem. The only way to know is to test on your data. Anote lets you benchmark any model against real-world datasets — including your own — so the results are directly actionable."
+  },
+  {
+    "question": "How do I know the results are accurate?",
+    "answer": "Every benchmark result is reproducible. Prompts are constructed deterministically from the dataset, model outputs are collected via the provider's API, and scores are computed with established metrics (accuracy, F1, BLEU, BERTScore). The scoring code is open source so you can inspect it. For translation tasks, we use BERTScore for Asian languages (Japanese, Chinese, Korean) where BLEU is unreliable, and BLEU for Spanish and Arabic where n-gram overlap is meaningful."
+  },
+  {
+    "question": "Can someone game the leaderboard?",
+    "answer": "Dataset inputs are public — there is no hidden test set. Anote is not a competition leaderboard; it's a benchmarking platform. You run your model against a dataset and see where it ranks compared to others who ran against the same dataset. If you fine-tune on the benchmark data, your score will reflect that, but a careful reader will notice the submission name and draw their own conclusions."
+  },
+  {
+    "question": "Which metric should I use for my task?",
+    "bullets": [
+      {
+        "term": "Text classification",
+        "text": "Accuracy (overall correctness) or F1 (balances precision and recall, better when classes are unequal)"
+      },
+      {
+        "term": "Translation (Spanish, Arabic)",
+        "text": "BLEU (measures n-gram overlap with a reference translation; 0–1, higher is better)"
+      },
+      {
+        "term": "Translation (Japanese, Chinese, Korean)",
+        "text": "BERTScore (semantic similarity using embeddings; n-gram overlap is meaningless for these scripts)"
+      },
+      {
+        "term": "Q&A / document retrieval",
+        "text": "Exact Match or BERTScore depending on whether answers are expected to match word-for-word or semantically"
+      },
+      {
+        "term": "Summarization",
+        "text": "ROUGE-L (longest common subsequence overlap with a reference summary)"
+      }
+    ]
+  },
+  {
+    "question": "How do I submit my own model?",
+    "steps": [
+      "Go to Submit in the navigation bar and log in.",
+      "Choose a benchmark dataset from the dropdown.",
+      "Select your model provider (OpenAI, Anthropic, Google, Ollama, or a custom endpoint) and enter credentials if required.",
+      "Submit — the platform runs your model against the dataset and scores it automatically.",
+      "Your result appears in the leaderboard under the dataset you chose."
+    ]
+  },
+  {
+    "question": "What is BERTScore and why is it better than BLEU for some languages?",
+    "answer": "BLEU counts exact n-gram matches between a model's output and a reference. It works well for European languages because similar meanings often use the same words. For Japanese, Chinese, and Korean, word segmentation is ambiguous and characters carry more meaning than individual words, so n-gram overlap is nearly zero even for good translations. BERTScore instead computes the cosine similarity of contextual embeddings (from a multilingual BERT model), which captures semantic meaning regardless of the surface form. Scores are between 0 and 1; values above 0.85 are generally considered high quality."
+  },
+  {
+    "question": "Where can I find the evaluation datasets?",
+    "answer": "Each dataset card in the leaderboard includes a link to the source (HuggingFace, GitHub, or the original paper). You can also import datasets directly from HuggingFace Hub using the Create Leaderboard feature. If you need direct access to a dataset that isn't linked, email nvidra@anote.ai."
+  },
+  {
+    "question": "How many times can I submit?",
+    "answer": "There is no strict limit. You're welcome to submit as many times as you like, but for the most meaningful comparison, submit when there are substantial updates or improvements to your model."
+  },
+  {
+    "question": "Do I need to share my model weights?",
+    "answer": "No. You only need to provide a way for the platform to run inference — either by selecting a hosted provider (OpenAI, Anthropic, Google) and providing your API key, or by pointing to a local Ollama endpoint. Model weights, code, and training data are never required."
+  }
+]

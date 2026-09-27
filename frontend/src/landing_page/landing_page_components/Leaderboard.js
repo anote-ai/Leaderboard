@@ -2,7 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import IconButton from "@mui/material/IconButton";
 import Skeleton from "@mui/material/Skeleton";
 import { submittoleaderboardPath, compareModelsPath } from "../../constants/RouteConstants";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import Seo, { SITE_URL } from "../../seo/Seo";
+import DATASET_CATALOG from "../../seo/datasetCatalog.json";
+import { HOME_DESCRIPTION, HOME_TITLE, datasetPath, homeJsonLd } from "../../seo/seoCore.mjs";
 
 function humanizeMetricKey(metric) {
   if (!metric || String(metric).trim() === "") return "";
@@ -1682,6 +1685,7 @@ const Leaderboard = () => {
 
   return (
     <div className="flex flex-col items-center justify-start min-h-screen bg-[#111827] pb-24 px-4 text-gray-100">
+      <Seo title={HOME_TITLE} description={HOME_DESCRIPTION} path="/" jsonLd={homeJsonLd(DATASET_CATALOG, SITE_URL)} />
 
       {/* ── Hero ── */}
       <header className="w-full max-w-4xl mt-10 pt-4 text-center relative">
@@ -1929,22 +1933,21 @@ const Leaderboard = () => {
                 >
                   {showAdv ? "Hide metrics" : "Advanced metrics"}
                 </button>
-                <button
-                  type="button"
+                <Link
+                  to={datasetPath(dataset.name)}
+                  state={{
+                    name: dataset.name,
+                    task_type: dataset.task_type,
+                    evaluation_metric: dataset.evaluation_metric,
+                    url: dataset.url,
+                    description: dataset.description,
+                    models: dataset.models,
+                  }}
                   className="inline-flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border border-gray-700/60 text-gray-500 hover:text-[#28b2fb] hover:border-[#28b2fb]/30 transition-colors"
-                  onClick={() => navigate(`/dataset/${encodeURIComponent(dataset.name)}`, {
-                    state: {
-                      name: dataset.name,
-                      task_type: dataset.task_type,
-                      evaluation_metric: dataset.evaluation_metric,
-                      url: dataset.url,
-                      description: dataset.description,
-                      models: dataset.models,
-                    }
-                  })}
+                  aria-label={`${dataset.name} leaderboard details`}
                 >
                   Details
-                </button>
+                </Link>
               </div>
             </div>
 

@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import Seo from "../../seo/Seo";
+import { datasetPath } from "../../seo/seoCore.mjs";
 
 const API_BASE = process.env.REACT_APP_API_BASE || process.env.REACT_APP_API_ENDPOINT || "http://localhost:5001";
 
@@ -132,8 +134,21 @@ const ModelCard = () => {
     return Array.from(keys).slice(0, 6);
   }, [card.rows]);
 
+  const seoDatasets = card.rows.map((row) => row.dataset_name).filter(Boolean).slice(0, 4).join(", ");
   return (
     <div className="flex flex-col items-center justify-start min-h-screen bg-gray-900 pb-24 mx-3">
+      {modelName && (
+        <Seo
+          title={`${modelName} Benchmark Results & Rankings | Anote`}
+          description={
+            seoDatasets
+              ? `${modelName} scores on the Anote Model Leaderboard: ${seoDatasets}. Compare ${modelName} against other models by task and metric.`
+              : `${modelName} scores on the Anote Model Leaderboard, compared against other models by task and metric.`
+          }
+          path={`/model/${encodeURIComponent(modelName)}`}
+          noindex={!loading && card.rows.length === 0}
+        />
+      )}
       <div className="w-full max-w-6xl mt-6 flex justify-between gap-3">
         <button type="button" onClick={() => navigate("/")} className="px-3 py-1 rounded-md border border-gray-700 text-gray-300 hover:bg-gray-700/40">
           Back to leaderboard
@@ -203,7 +218,7 @@ const ModelCard = () => {
                 <button
                   type="button"
                   className="text-[#defe47] text-sm mt-2 text-left underline"
-                  onClick={() => navigate(`/dataset/${encodeURIComponent(card.best.dataset_name)}`)}
+                  onClick={() => navigate(datasetPath(card.best.dataset_name))}
                 >
                   {card.best.dataset_name}
                 </button>
@@ -234,7 +249,7 @@ const ModelCard = () => {
                           <button
                             type="button"
                             className="text-[#defe47] underline text-left"
-                            onClick={() => navigate(`/dataset/${encodeURIComponent(row.dataset_name)}`)}
+                            onClick={() => navigate(datasetPath(row.dataset_name))}
                           >
                             {row.dataset_name}
                           </button>

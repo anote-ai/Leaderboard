@@ -1,0 +1,545 @@
+[
+  {
+    "name": "FinanceBench - Retrieval Accuracy",
+    "slug": "financebench-retrieval-accuracy",
+    "path": "/dataset/financebench-retrieval-accuracy",
+    "task_type": "retrieval",
+    "evaluation_metric": "retrieval_accuracy",
+    "lower_is_better": false,
+    "url": "https://github.com/patronus-ai/financebench",
+    "description": "Retrieval benchmark over FinanceBench questions about public-company SEC filings (10-K, 10-Q, earnings reports). Models and RAG pipelines are ranked by how often they retrieve the evidence page needed to answer the question.",
+    "models": [
+      {
+        "rank": 1,
+        "model": "GPT-4o Fine Tuned",
+        "score": 0.632,
+        "ci": "0.61 - 0.65",
+        "updated": "Oct 2024"
+      },
+      {
+        "rank": 2,
+        "model": "Mistral Fine Tuned",
+        "score": 0.612,
+        "ci": "0.59 - 0.63",
+        "updated": "Oct 2024"
+      },
+      {
+        "rank": 3,
+        "model": "LLaMA 3 Fine Tuned",
+        "score": 0.593,
+        "ci": "0.57 - 0.61",
+        "updated": "Oct 2024"
+      },
+      {
+        "rank": 4,
+        "model": "Re-ranking",
+        "score": 0.573,
+        "ci": "0.55 - 0.59",
+        "updated": "Oct 2024"
+      },
+      {
+        "rank": 5,
+        "model": "Query Expansiong",
+        "score": 0.256,
+        "ci": "0.24 - 0.27",
+        "updated": "Sep 2024"
+      },
+      {
+        "rank": 6,
+        "model": "Base Case RAG",
+        "score": 0.24,
+        "ci": "0.22 - 0.26",
+        "updated": "Sep 2024"
+      }
+    ]
+  },
+  {
+    "name": "Amazon Reviews - Classification Accuracy",
+    "slug": "amazon-reviews-classification-accuracy",
+    "path": "/dataset/amazon-reviews-classification-accuracy",
+    "task_type": "text_classification",
+    "evaluation_metric": "accuracy",
+    "lower_is_better": false,
+    "url": "https://huggingface.co/datasets/m-ric/amazon_product_reviews_datafiniti",
+    "description": "Product-review classification on Amazon reviews (Datafiniti). Models are ranked by accuracy at predicting the review label from the review text.",
+    "models": [
+      {
+        "rank": 1,
+        "model": "GPT-4o",
+        "score": 0.94,
+        "ci": "0.92 - 0.96",
+        "updated": "Sep 2024"
+      },
+      {
+        "rank": 2,
+        "model": "GPT-3.5",
+        "score": 0.91,
+        "ci": "0.89 - 0.93",
+        "updated": "Sep 2024"
+      },
+      {
+        "rank": 3,
+        "model": "LLaMA 3",
+        "score": 0.9,
+        "ci": "0.88 - 0.92",
+        "updated": "Oct 2024"
+      },
+      {
+        "rank": 4,
+        "model": "BERT",
+        "score": 0.89,
+        "ci": "0.87 - 0.91",
+        "updated": "Sep 2024"
+      },
+      {
+        "rank": 5,
+        "model": "SetFit",
+        "score": 0.87,
+        "ci": "0.85 - 0.89",
+        "updated": "Sep 2024"
+      },
+      {
+        "rank": 6,
+        "model": "Claude 2",
+        "score": 0.86,
+        "ci": "0.83 - 0.87",
+        "updated": "Oct 2024"
+      }
+    ]
+  },
+  {
+    "name": "RAG Instruct - Answer Accuracy",
+    "slug": "rag-instruct-answer-accuracy",
+    "path": "/dataset/rag-instruct-answer-accuracy",
+    "task_type": "document_qa",
+    "evaluation_metric": "exact_match",
+    "lower_is_better": false,
+    "url": "https://huggingface.co/datasets/llmware/rag_instruct_benchmark_tester",
+    "description": "Retrieval-augmented question answering from llmware's RAG Instruct benchmark: each question comes with a context passage, and answers are ranked by exact match against the reference answer.",
+    "models": [
+      {
+        "rank": 1,
+        "model": "GPT-4o",
+        "score": 0.89,
+        "ci": "0.87 - 0.91",
+        "updated": "Oct 2024"
+      },
+      {
+        "rank": 2,
+        "model": "GPT 3.5",
+        "score": 0.86,
+        "ci": "0.84 - 0.88",
+        "updated": "Oct 2024"
+      },
+      {
+        "rank": 3,
+        "model": "Llama3",
+        "score": 0.85,
+        "ci": "0.83 - 0.87",
+        "updated": "Oct 2024"
+      },
+      {
+        "rank": 4,
+        "model": "Claude 2",
+        "score": 0.83,
+        "ci": "0.81 - 0.85",
+        "updated": "Oct 2024"
+      },
+      {
+        "rank": 5,
+        "model": "GPT4ALL",
+        "score": 0.82,
+        "ci": "0.80 - 0.84",
+        "updated": "Oct 2024"
+      },
+      {
+        "rank": 6,
+        "model": "FLARE",
+        "score": 0.81,
+        "ci": "0.79 - 0.83",
+        "updated": "Oct 2024"
+      }
+    ]
+  },
+  {
+    "name": "Financial Phrasebank - Classify Accuracy",
+    "slug": "financial-phrasebank-classify-accuracy",
+    "path": "/dataset/financial-phrasebank-classify-accuracy",
+    "task_type": "text_classification",
+    "evaluation_metric": "f1",
+    "lower_is_better": false,
+    "url": "https://huggingface.co/datasets/takala/financial_phrasebank",
+    "description": "Financial sentiment classification on Financial PhraseBank: label financial news sentences as positive, negative, or neutral. Models are ranked by F1.",
+    "models": [
+      {
+        "rank": 1,
+        "model": "Gemini",
+        "score": 0.95,
+        "ci": "0.93 - 0.97",
+        "updated": "Sep 2024"
+      },
+      {
+        "rank": 2,
+        "model": "GPT-4o",
+        "score": 0.93,
+        "ci": "0.91 - 0.95",
+        "updated": "Sep 2024"
+      },
+      {
+        "rank": 3,
+        "model": "Llama3",
+        "score": 0.92,
+        "ci": "0.90 - 0.94",
+        "updated": "Sep 2024"
+      },
+      {
+        "rank": 4,
+        "model": "BERT",
+        "score": 0.92,
+        "ci": "0.90 - 0.94",
+        "updated": "Sep 2024"
+      },
+      {
+        "rank": 5,
+        "model": "SetFit",
+        "score": 0.89,
+        "ci": "0.87 - 0.91",
+        "updated": "Sep 2024"
+      },
+      {
+        "rank": 6,
+        "model": "Claude 2",
+        "score": 0.87,
+        "ci": "0.85 - 0.88",
+        "updated": "Oct 2024"
+      }
+    ]
+  },
+  {
+    "name": "TREC - Hierarchical Classification Accuracy",
+    "slug": "trec-hierarchical-classification-accuracy",
+    "path": "/dataset/trec-hierarchical-classification-accuracy",
+    "task_type": "text_classification",
+    "evaluation_metric": "accuracy",
+    "lower_is_better": false,
+    "url": "https://huggingface.co/datasets/CogComp/trec",
+    "description": "TREC question classification: assign each question to its answer-type category (e.g. location, number, person). Models are ranked by accuracy.",
+    "models": [
+      {
+        "rank": 1,
+        "model": "Claude 2",
+        "score": 0.85,
+        "ci": "0.83 - 0.87",
+        "updated": "Sep 2024"
+      },
+      {
+        "rank": 2,
+        "model": "GPT-4o",
+        "score": 0.82,
+        "ci": "0.80 - 0.84",
+        "updated": "Sep 2024"
+      },
+      {
+        "rank": 3,
+        "model": "Mistral",
+        "score": 0.81,
+        "ci": "0.79 - 0.83",
+        "updated": "Sep 2024"
+      },
+      {
+        "rank": 4,
+        "model": "BERT",
+        "score": 0.8,
+        "ci": "0.78 - 0.82",
+        "updated": "Sep 2024"
+      },
+      {
+        "rank": 5,
+        "model": "SetFit",
+        "score": 0.79,
+        "ci": "0.77 - 0.81",
+        "updated": "Sep 2024"
+      }
+    ]
+  },
+  {
+    "name": "Banking Dataset - Classification Accuracy",
+    "slug": "banking-dataset-classification-accuracy",
+    "path": "/dataset/banking-dataset-classification-accuracy",
+    "task_type": "text_classification",
+    "evaluation_metric": "accuracy",
+    "lower_is_better": false,
+    "url": "https://huggingface.co/datasets/takala/financial_phrasebank",
+    "description": "Banking intent and sentiment classification on short customer and financial texts. Models are ranked by accuracy.",
+    "models": [
+      {
+        "rank": 1,
+        "model": "GPT-4o",
+        "score": 0.93,
+        "ci": "0.91 - 0.95",
+        "updated": "Sep 2024"
+      },
+      {
+        "rank": 2,
+        "model": "Gemini",
+        "score": 0.91,
+        "ci": "0.89 - 0.93",
+        "updated": "Sep 2024"
+      },
+      {
+        "rank": 3,
+        "model": "Mistral",
+        "score": 0.9,
+        "ci": "0.88 - 0.92",
+        "updated": "Sep 2024"
+      },
+      {
+        "rank": 4,
+        "model": "BERT",
+        "score": 0.89,
+        "ci": "0.87 - 0.91",
+        "updated": "Sep 2024"
+      },
+      {
+        "rank": 5,
+        "model": "SetFit",
+        "score": 0.87,
+        "ci": "0.85 - 0.89",
+        "updated": "Sep 2024"
+      }
+    ]
+  },
+  {
+    "name": "ARC-SMART",
+    "slug": "arc-smart",
+    "path": "/dataset/arc-smart",
+    "task_type": "text_classification",
+    "evaluation_metric": "accuracy",
+    "lower_is_better": false,
+    "url": "https://huggingface.co/datasets/vipulgupta/arc-smart",
+    "description": "ARC-SMART, a filtered version of the AI2 Reasoning Challenge: grade-school science multiple-choice questions. Models are ranked by accuracy.",
+    "models": [
+      {
+        "rank": 1,
+        "model": "Qwen2-72B-Instruct",
+        "score": 0.83,
+        "updated": "Oct-2024"
+      },
+      {
+        "rank": 2,
+        "model": "Meta-Llama-3.1-70B-Instruct",
+        "score": 0.819,
+        "updated": "Oct-2024"
+      },
+      {
+        "rank": 3,
+        "model": "Meta-Llama-3-70B-Instruct",
+        "score": 0.819,
+        "updated": "Oct-2024"
+      },
+      {
+        "rank": 4,
+        "model": "Gemma-2-27b-it",
+        "score": 0.788,
+        "updated": "Oct-2024"
+      },
+      {
+        "rank": 5,
+        "model": "Phi-3.5-MoE-instruct",
+        "score": 0.785,
+        "updated": "Oct-2024"
+      },
+      {
+        "rank": 6,
+        "model": "Phi-3-medium-4k-instruct",
+        "score": 0.781,
+        "updated": "Oct-2024"
+      },
+      {
+        "rank": 7,
+        "model": "Mixtral-8x22B-Instruct-v0.1",
+        "score": 0.762,
+        "updated": "Oct-2024"
+      }
+    ]
+  },
+  {
+    "name": "MMLU-SMART",
+    "slug": "mmlu-smart",
+    "path": "/dataset/mmlu-smart",
+    "task_type": "text_classification",
+    "evaluation_metric": "accuracy",
+    "lower_is_better": false,
+    "url": "https://huggingface.co/datasets/vipulgupta/mmlu-smart",
+    "description": "MMLU-SMART, a filtered version of MMLU covering multiple-choice knowledge questions across academic subjects. Models are ranked by accuracy.",
+    "models": [
+      {
+        "rank": 1,
+        "model": "Qwen2-72B-Instruct",
+        "score": 0.743,
+        "updated": "Oct-2024"
+      },
+      {
+        "rank": 2,
+        "model": "Meta-Llama-3.1-70B-Instruct",
+        "score": 0.714,
+        "updated": "Oct-2024"
+      },
+      {
+        "rank": 3,
+        "model": "Meta-Llama-3-70B-Instruct",
+        "score": 0.692,
+        "updated": "Oct-2024"
+      },
+      {
+        "rank": 4,
+        "model": "Phi-3.5-MoE-instruct",
+        "score": 0.67,
+        "updated": "Oct-2024"
+      },
+      {
+        "rank": 5,
+        "model": "Phi-3-medium-4k-instruct",
+        "score": 0.656,
+        "updated": "Oct-2024"
+      },
+      {
+        "rank": 6,
+        "model": "Mixtral-8x22B-Instruct-v0.1",
+        "score": 0.653,
+        "updated": "Oct-2024"
+      },
+      {
+        "rank": 7,
+        "model": "Gemma-2-27b-it",
+        "score": 0.639,
+        "updated": "Oct-2024"
+      }
+    ]
+  },
+  {
+    "name": "CommonsenseQA-SMART",
+    "slug": "commonsenseqa-smart",
+    "path": "/dataset/commonsenseqa-smart",
+    "task_type": "text_classification",
+    "evaluation_metric": "accuracy",
+    "lower_is_better": false,
+    "url": "https://huggingface.co/datasets/vipulgupta/commonsense_qa_smart",
+    "description": "CommonsenseQA-SMART, a filtered version of CommonsenseQA: multiple-choice questions that require everyday commonsense reasoning. Models are ranked by accuracy.",
+    "models": [
+      {
+        "rank": 1,
+        "model": "Qwen2-72B-Instruct",
+        "score": 0.845,
+        "updated": "Oct-2024"
+      },
+      {
+        "rank": 2,
+        "model": "Yi-1.5-34B-Chat",
+        "score": 0.776,
+        "updated": "Oct-2024"
+      },
+      {
+        "rank": 3,
+        "model": "Meta-Llama-3-70B-Instruct",
+        "score": 0.771,
+        "updated": "Oct-2024"
+      },
+      {
+        "rank": 4,
+        "model": "Qwen1.5-32B-Chat",
+        "score": 0.767,
+        "updated": "Oct-2024"
+      },
+      {
+        "rank": 5,
+        "model": "Meta-Llama-3.1-70B-Instruct",
+        "score": 0.741,
+        "updated": "Oct-2024"
+      },
+      {
+        "rank": 6,
+        "model": "Phi-3.5-MoE-instruct",
+        "score": 0.739,
+        "updated": "Oct-2024"
+      },
+      {
+        "rank": 7,
+        "model": "Gemma-2-9b-it",
+        "score": 0.733,
+        "updated": "Oct-2024"
+      }
+    ]
+  },
+  {
+    "name": "Geolocation Inference - Median Distance Error",
+    "slug": "geolocation-inference-median-distance-error",
+    "path": "/dataset/geolocation-inference-median-distance-error",
+    "task_type": "geolocation",
+    "evaluation_metric": "median_distance_error",
+    "lower_is_better": true,
+    "url": "https://github.com/njspyx/location-inference",
+    "description": "Geolocation inference: predict where an image or text was captured. Models are ranked by median great-circle distance error in kilometres (lower is better).",
+    "models": [
+      {
+        "rank": 1,
+        "model": "GPT-o1",
+        "score": 182.73,
+        "updated": "Feb 2025"
+      },
+      {
+        "rank": 2,
+        "model": "GPT-4o",
+        "score": 216.13,
+        "updated": "Feb 2025"
+      },
+      {
+        "rank": 3,
+        "model": "Gemini 1.5 Pro",
+        "score": 287.27,
+        "updated": "Feb 2025"
+      },
+      {
+        "rank": 4,
+        "model": "Gemini 1.5 Flash",
+        "score": 298.86,
+        "updated": "Feb 2025"
+      },
+      {
+        "rank": 5,
+        "model": "Gemini 1.5 Flash 8B",
+        "score": 304.96,
+        "updated": "Feb 2025"
+      },
+      {
+        "rank": 6,
+        "model": "GPT-4o Mini",
+        "score": 380.85,
+        "updated": "Feb 2025"
+      },
+      {
+        "rank": 7,
+        "model": "Claude 3.5 Sonnet",
+        "score": 382.07,
+        "updated": "Feb 2025"
+      },
+      {
+        "rank": 8,
+        "model": "Qwen2VL 7B Instruct",
+        "score": 475.25,
+        "updated": "Feb 2025"
+      }
+    ]
+  },
+  {
+    "name": "SST-2 Sentiment (Sample)",
+    "slug": "sst-2-sentiment-sample",
+    "path": "/dataset/sst-2-sentiment-sample",
+    "task_type": "text_classification",
+    "evaluation_metric": "accuracy",
+    "lower_is_better": false,
+    "url": "https://huggingface.co/datasets/nyu-mll/glue",
+    "description": "Stanford Sentiment Treebank binary sentiment classification. 20-sample subset.",
+    "models": []
+  }
+]

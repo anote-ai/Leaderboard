@@ -92,6 +92,7 @@ Notes
 - `POST /public/import_hf_dataset`: import a bounded Hugging Face split.
 - `POST /api/datasets/ingest`: ingestion-compatible alias for Hugging Face imports.
 - `GET /public/export/leaderboard?format=csv|json`: export leaderboard rows.
+- `GET /public/sitemap.xml`: sitemap of every public dataset page (including datasets added after the frontend build). See [`docs/seo.md`](docs/seo.md).
 
 Pagination (leaderboard and my submissions):
 - Prefer `cursor` (opaque keyset) for stable paging; when `cursor` is set, `page` is ignored.
@@ -114,6 +115,7 @@ Optional write protection:
 5. **Anote JWT** (if used): configure `ANOTE_JWKS_URL` and optional `ANOTE_ISSUER` / `ANOTE_AUDIENCE` so Bearer tokens from the main app validate with a non-empty `sub`.
 6. **TLS & proxy**: terminate TLS at your reverse proxy; when Flask sees internal URLs, use `LEADERBOARD_OAUTH_PUBLIC_BASE_URL` so Google receives the same HTTPS origin users hit.
 7. **Smoke tests**: `GET /health`, `GET /openapi.json`, contributor login flow, `GET /api/admin/submissions` with `X-Admin-Key`, and a write with API key or Bearer.
+8. **SEO**: attach the CloudFront Function in `aws_deploy/cloudfront/spa-prerender-rewrite.js` and point the 403/404 error responses at `/app-shell.html` so prerendered dataset pages are served. See [`docs/seo.md`](docs/seo.md).
 
 See [`backend/.env.example`](Leaderboard/backend/.env.example) for variable names.
 

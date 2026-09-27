@@ -162,11 +162,23 @@ jobs:
             --acl public-read \
             --delete \
             --cache-control "max-age=31536000,immutable" \
-            --exclude "index.html"
-          # index.html must not be cached so routing updates reach users immediately
-          aws s3 cp frontend/build/index.html s3://${{ env.S3_BUCKET }}/index.html \
+            --exclude "*.html" \
+            --exclude "sitemap.xml" \
+            --exclude "robots.txt"
+          # HTML (index.html, app-shell.html and the prerendered faq/ and dataset/<slug>/ pages)
+          # must not be cached so routing and ranking updates reach users and crawlers immediately
+          aws s3 sync frontend/build/ s3://${{ env.S3_BUCKET }} \
             --acl public-read \
+            --delete \
+            --exclude "*" \
+            --include "*.html" \
+            --content-type "text/html; charset=utf-8" \
             --cache-control "no-cache,no-store,must-revalidate"
+          for f in sitemap.xml robots.txt; do
+            aws s3 cp "frontend/build/$f" "s3://${{ env.S3_BUCKET }}/$f" \
+              --acl public-read \
+              --cache-control "public,max-age=3600"
+          done
 
       - name: Invalidate CloudFront cache
         run: |

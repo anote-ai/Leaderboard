@@ -36,6 +36,7 @@ nav:
   - API Usage: api.md
   - Hugging Face Imports: huggingface-imports.md
   - Operations: operations.md
+  - SEO and Prerendering: seo.md
 markdown_extensions:
   - pymdownx.highlight:
       anchor_linenums: true

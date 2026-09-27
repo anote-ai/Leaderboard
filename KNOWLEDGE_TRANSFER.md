@@ -261,6 +261,7 @@ If secrets are missing, AWS deploy jobs are skipped and the workflow shows a war
 
 - Add real AWS secrets in GitHub Actions.
 - Create or verify the AWS resources listed above.
+- Attach the SEO CloudFront Function (`aws_deploy/cloudfront/spa-prerender-rewrite.js`) and point 403/404 error responses at `/app-shell.html`; see `docs/seo.md`.
 - Confirm the S3 bucket policy / CloudFront setup. The workflow currently uses `--acl public-read`; if the bucket uses Object Ownership with ACLs disabled, remove the ACL flags and use CloudFront OAC/bucket policy instead.
 - Decide whether production DB should be RDS/MySQL. Recommended for production.
 - Configure production Google OAuth redirect URI.
